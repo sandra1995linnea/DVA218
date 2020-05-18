@@ -4,15 +4,17 @@
  *  Created on: May 10, 2020
  *      Author: student
  */
-
-
-#include "client.h"
+#include "linkedlist.h"
 
 
 #define PORT 5555
 #define hostNameLength 50
 #define messageLength  256
 #define MAXMSG 512
+
+
+struct sockaddr_in serverName;
+socklen_t size;
 
 /* initSocketAddress
  * Initialises a sockaddr_in struct given a host name and a port.
@@ -37,21 +39,21 @@ void initSocketAddress(struct sockaddr_in *name, char *hostName, unsigned short 
  * Writes the string message to the file (socket)
  * denoted by fileDescriptor.
  */
-void writeMessage(int fileDescriptor, char *message) {
+void writeMessage(int fileDescriptor, char *message, size) {
 	int nOfBytes;
 
-	nOfBytes = write(fileDescriptor, message, strlen(message) + 1);
+	nOfBytes = sendto(fileDescriptor, message, strlen(message) + 1, 0, (struct sockaddr *)&serverName, size);
 	if(nOfBytes < 0) {
 		perror("writeMessage - Could not write data\n");
 		exit(EXIT_FAILURE);
 	}
 }
 // recieving the respond message from the server and printing it out on the screen
-void receiveMessage(int sock)
+void receiveMessage(int sock, size)
 {
 	char buffer[MAXMSG];
 
-	int nOfBytes = read(sock, buffer, MAXMSG);
+	int nOfBytes = recvfrom(sock, buffer, MAXMSG, 0, (struct sockaddr*) &serverName, &size);
 	if(nOfBytes < 0) {
 		perror("Could not read data from client\n");
 		exit(EXIT_FAILURE);
@@ -71,7 +73,7 @@ void* ListenToMessages(void *pointer)
 
 	while(1)
 	{
-		receiveMessage(*socket);
+		receiveMessage(*socket, size);
 	}
 }
 
@@ -82,6 +84,7 @@ int main(int argc, char *argv[]) {
 	char messageString[messageLength];
 	pthread_t thread1;
 	int func1;
+	socklen_t size;
 
 	/* Check arguments */
 	if(argv[1] == NULL) {
@@ -94,7 +97,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* Create the socket */
-	sock = socket(PF_INET, SOCK_STREAM, 0);
+	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if(sock < 0) {
 		perror("Could not create a socket\n");
 		exit(EXIT_FAILURE);
@@ -131,7 +134,7 @@ int main(int argc, char *argv[]) {
 		messageString[messageLength - 1] = '\0';
 
 		if(strncmp(messageString,"quit\n",messageLength) != 0) {
-			writeMessage(sock, messageString);
+			writeMessage(sock, messageString, size);
 		}
 		else {
 			close(sock);

@@ -4,11 +4,14 @@
  *  Created on: May 10, 2020
  *      Author: student
  */
-#include "server.h"
+#include "linkedlist.h"
 
 
 #define PORT 5555
 #define MAXMSG 512
+
+
+struct sockaddr_in clientName;
 
 /* makeSocket
  * Creates and names a socket in the Internet
@@ -25,11 +28,13 @@ int makeSocket(unsigned short int port) {
 	struct sockaddr_in name;
 
 	/* Create a socket. */
-	sock = socket(PF_INET, SOCK_STREAM, 0);
+	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP); //make an UDP socket
 	if(sock < 0) {
 		perror("Could not create a socket\n");
 		exit(EXIT_FAILURE);
 	}
+
+	memset((char*)&name, 0, sizeof(name));
 	/* Give the socket a name. */
 	/* Socket address format set to AF_INET for Internet use. */
 	name.sin_family = AF_INET;
@@ -50,10 +55,10 @@ int makeSocket(unsigned short int port) {
 }
 
 // sending a message to the client, that we got the message
-void respondToClient(int fileDescriptor, char *message)
+void respondToClient(int fileDescriptor, char *message, socklen_t size)
 {
 	int nrOfBytes;
-	nrOfBytes = write(fileDescriptor, message, strlen(message) + 1);
+	nrOfBytes = sendto(fileDescriptor, message, strlen(message) + 1, 0, (struct sockaddr *)&clientName, size);
 		if(nrOfBytes < 0) {
 			perror("writeMessage - Could not write data\n");
 			exit(EXIT_FAILURE);
@@ -65,11 +70,11 @@ void respondToClient(int fileDescriptor, char *message)
  * Reads and prints data read from the file (socket
  * denoted by the file descriptor 'fileDescriptor'.
  */
-int readMessageFromClient(int fileDescriptor) {
+int readMessageFromClient(int fileDescriptor, socklen_t size) {
 	char buffer[MAXMSG];
 	int nOfBytes;
 
-	nOfBytes = read(fileDescriptor, buffer, MAXMSG);
+	nOfBytes = recvfrom(fileDescriptor, buffer, MAXMSG, 0, (struct sockaddr *)&clientName, &size);
 	if(nOfBytes < 0) {
 		perror("Could not read data from client\n");
 		exit(EXIT_FAILURE);
@@ -82,7 +87,7 @@ int readMessageFromClient(int fileDescriptor) {
 			/* Data read */
 			printf(">Incoming message: %s\n", buffer);
 
-			respondToClient(fileDescriptor, "I hear you duede");
+			respondToClient(fileDescriptor, "I hear you duede", size);
 		}
 	return(0);
 }
@@ -99,17 +104,10 @@ int main(int argc, char *argv[]) {
 	/* Create a socket and set it up to accept connections */
 	sock = makeSocket(PORT);
 
-	/* Listen for connection requests from clients */
-	//seting the socket to be a listening socket
-	if(listen(sock,1) < 0) {
-		perror("Could not listen for connections\n");
-		exit(EXIT_FAILURE);
-	}
-
 	/* Initialize the set of active sockets */
 	//saving all the active sockets in a struct
-	FD_ZERO(&activeFdSet);
-	FD_SET(sock, &activeFdSet);
+	FD_ZERO(&set);
+	FD_SET(sock, &set);
 
 	printf("\n[waiting for connections...]\n");
 
@@ -121,7 +119,6 @@ int main(int argc, char *argv[]) {
 			perror("Select failed\n");
 			exit(EXIT_FAILURE);
 		}
-
 
 		/* Service all the sockets with input pending */
 		for(i = 0; i < FD_SETSIZE; ++i)
@@ -150,7 +147,7 @@ int main(int argc, char *argv[]) {
 				}
 				else {
 					/* Data arriving on an already connected socket */
-					if(readMessageFromClient(i) < 0)
+					if(readMessageFromClient(i, size) < 0)
 					{
 						close(i);
 						FD_CLR(i, &activeFdSet);

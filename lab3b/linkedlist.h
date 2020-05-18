@@ -1,12 +1,12 @@
 /*
- * server.h
+ * linkedlist.h
  *
- *  Created on: May 10, 2020
+ *  Created on: May 18, 2020
  *      Author: student
  */
 
-#ifndef SERVER_H_
-#define SERVER_H_
+#ifndef LINKEDLIST_H_
+#define LINKEDLIST_H_
 
 #include <string.h>
 #include <stdio.h>
@@ -19,5 +19,6 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <sys/select.h>
 
-#endif /* SERVER_H_ */
+#endif /* LINKEDLIST_H_ */
