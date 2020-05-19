@@ -5,6 +5,7 @@
  *      Author: student
  */
 #include "linkedlist.h"
+#include <pthread.h>
 
 
 #define PORT 5555
@@ -41,8 +42,8 @@ void initSocketAddress(struct sockaddr_in *name, char *hostName, unsigned short 
  */
 void writeMessage(int fileDescriptor, char *message) {
 	int nOfBytes;
-	socklen_t size;
-	nOfBytes = sendto(fileDescriptor, message, sizeof(message), 0, (struct sockaddr *)&serverName, size);
+	socklen_t size = sizeof(serverName);
+	nOfBytes = sendto(fileDescriptor, message, sizeof(message)+1, 0, (struct sockaddr *)&serverName, size);
 	if(nOfBytes < 0) {
 		perror("writeMessage - Could not write data\n");
 		exit(EXIT_FAILURE);
@@ -52,8 +53,11 @@ void writeMessage(int fileDescriptor, char *message) {
 void receiveMessage(int sock)
 {
 	char buffer[MAXMSG];
+	struct sockaddr senderAddress;
+	socklen_t serverNameLength;
 
-	int nOfBytes = recvfrom(sock, buffer, MAXMSG, 0, (struct sockaddr*) &serverName, sizeof(serverName));
+	int nOfBytes = recvfrom(sock, buffer, MAXMSG, 0, (struct sockaddr*) &senderAddress, &serverNameLength);
+
 	if(nOfBytes < 0) {
 		perror("Could not read data from client\n");
 		exit(EXIT_FAILURE);
@@ -79,12 +83,10 @@ void* ListenToMessages(void *pointer)
 
 int main(int argc, char *argv[]) {
 	int sock;
-	struct sockaddr_in serverName;
 	char hostName[hostNameLength];
 	char messageString[messageLength];
 	pthread_t thread1;
 	int func1;
-	socklen_t size;
 
 	/* Check arguments */
 	if(argv[1] == NULL) {
@@ -106,23 +108,13 @@ int main(int argc, char *argv[]) {
 	/* Initialize the socket address */
 	initSocketAddress(&serverName, hostName, PORT);
 
-	size = sizeof(struct sockaddr_in);
-
-	/* Connect to the server */
-	if(connect(sock, (struct sockaddr *)&serverName, sizeof(serverName)) < 0) {
-		perror("Could not connect to server\n");
-		exit(EXIT_FAILURE);
+	//creating a thread that will handle the messages to every client
+	func1 = pthread_create(&thread1, NULL, ListenToMessages, &sock);
+	if (func1 != 0)
+	{
+		perror("Pthread is not working...");
+		exit(EXIT_SUCCESS);
 	}
-	else
-	{	//creating a thread that will handle the messages to every client
-		func1 = pthread_create(&thread1, NULL, ListenToMessages, &sock);
-		if (func1 != 0)
-		{
-			perror("Pthread is not working...");
-			exit(EXIT_SUCCESS);
-		}
-	}
-
 
 	printf("\nType something and press [RETURN] to send it to the server.\n");
 	printf("Type 'quit' to nuke this program.\n");

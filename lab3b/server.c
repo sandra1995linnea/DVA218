@@ -59,10 +59,10 @@ void respondToClient(int fileDescriptor, char *message)
 {
 	int nrOfBytes;
 	nrOfBytes = sendto(fileDescriptor, message, strlen(message) + 1, 0, (struct sockaddr *)&clientName, sizeof(clientName));
-		if(nrOfBytes < 0) {
-			perror("writeMessage - Could not write data\n");
-			exit(EXIT_FAILURE);
-		}
+	if(nrOfBytes < 0) {
+		perror("writeMessage - Could not write data\n");
+		exit(EXIT_FAILURE);
+	}
 }
 
 
@@ -73,7 +73,6 @@ void respondToClient(int fileDescriptor, char *message)
 int readMessageFromClient(int fileDescriptor, socklen_t size) {
 	char buffer[MAXMSG];
 	int nOfBytes;
-
 
 	nOfBytes = recvfrom(fileDescriptor, buffer, MAXMSG, 0, (struct sockaddr *)&clientName, &size);
 	if(nOfBytes < 0) {
@@ -96,10 +95,7 @@ int readMessageFromClient(int fileDescriptor, socklen_t size) {
 
 int main(int argc, char *argv[]) {
 	int sock;
-	int clientSocket;
-	int i;
-	fd_set activeFdSet, readFdSet, set; /* Used by select */
-	//struct sockaddr_in clientName;
+	fd_set activeFdSet, set; /* Used by select */
 	socklen_t size;
 
 	/* Create a socket and set it up to accept connections */
