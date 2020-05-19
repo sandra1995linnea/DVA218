@@ -55,10 +55,10 @@ int makeSocket(unsigned short int port) {
 }
 
 // sending a message to the client, that we got the message
-void respondToClient(int fileDescriptor, char *message, socklen_t size)
+void respondToClient(int fileDescriptor, char *message)
 {
 	int nrOfBytes;
-	nrOfBytes = sendto(fileDescriptor, message, strlen(message) + 1, 0, (struct sockaddr *)&clientName, size);
+	nrOfBytes = sendto(fileDescriptor, message, strlen(message) + 1, 0, (struct sockaddr *)&clientName, sizeof(clientName));
 		if(nrOfBytes < 0) {
 			perror("writeMessage - Could not write data\n");
 			exit(EXIT_FAILURE);
@@ -74,6 +74,7 @@ int readMessageFromClient(int fileDescriptor, socklen_t size) {
 	char buffer[MAXMSG];
 	int nOfBytes;
 
+
 	nOfBytes = recvfrom(fileDescriptor, buffer, MAXMSG, 0, (struct sockaddr *)&clientName, &size);
 	if(nOfBytes < 0) {
 		perror("Could not read data from client\n");
@@ -87,7 +88,7 @@ int readMessageFromClient(int fileDescriptor, socklen_t size) {
 			/* Data read */
 			printf(">Incoming message: %s\n", buffer);
 
-			respondToClient(fileDescriptor, "I hear you duede", size);
+			respondToClient(fileDescriptor, "I hear you duede");
 		}
 	return(0);
 }
@@ -97,12 +98,14 @@ int main(int argc, char *argv[]) {
 	int sock;
 	int clientSocket;
 	int i;
-	fd_set activeFdSet, readFdSet; /* Used by select */
-	struct sockaddr_in clientName;
+	fd_set activeFdSet, readFdSet, set; /* Used by select */
+	//struct sockaddr_in clientName;
 	socklen_t size;
 
 	/* Create a socket and set it up to accept connections */
 	sock = makeSocket(PORT);
+
+	size = sizeof(struct sockaddr_in);
 
 	/* Initialize the set of active sockets */
 	//saving all the active sockets in a struct
@@ -112,49 +115,12 @@ int main(int argc, char *argv[]) {
 	printf("\n[waiting for connections...]\n");
 
 	while(1) {
-		/* Block until input arrives on one or more active sockets
-       FD_SETSIZE is a constant with value = 1024 */
-		readFdSet = activeFdSet;
-		if(select(FD_SETSIZE, &readFdSet, NULL, NULL, NULL) < 0) {
-			perror("Select failed\n");
-			exit(EXIT_FAILURE);
-		}
 
-		/* Service all the sockets with input pending */
-		for(i = 0; i < FD_SETSIZE; ++i)
+		/* Data arriving on an already connected socket */
+		if(readMessageFromClient(sock, size) < 0)
 		{
-			if(FD_ISSET(i, &readFdSet))
-			{
-				if(i == sock) {
-					/* Connection request on original socket */
-					size = sizeof(struct sockaddr_in);
-
-					/* Accept the connection request from a client. */
-					clientSocket = accept(sock, (struct sockaddr *)&clientName, (socklen_t *)&size);
-					if(clientSocket < 0) {
-						perror("Could not accept connection\n");
-						exit(EXIT_FAILURE);
-					}
-
-					printf("Sock = %d. \nServer: Connect from client %s, port %d, on socket %d\n", sock,
-							inet_ntoa(clientName.sin_addr),
-							ntohs(clientName.sin_port), clientSocket);
-
-					FD_SET(clientSocket, &activeFdSet);
-
-					printf("Socket to server is now open :)\n\n");
-
-				}
-				else {
-					/* Data arriving on an already connected socket */
-					if(readMessageFromClient(i, size) < 0)
-					{
-						close(i);
-						FD_CLR(i, &activeFdSet);
-					}
-				}
-
-			  }
+			close(sock);
+			FD_CLR(sock, &activeFdSet);
 		}
 	}
 }

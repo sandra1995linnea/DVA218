@@ -14,7 +14,7 @@
 
 
 struct sockaddr_in serverName;
-socklen_t size;
+
 
 /* initSocketAddress
  * Initialises a sockaddr_in struct given a host name and a port.
@@ -39,21 +39,21 @@ void initSocketAddress(struct sockaddr_in *name, char *hostName, unsigned short 
  * Writes the string message to the file (socket)
  * denoted by fileDescriptor.
  */
-void writeMessage(int fileDescriptor, char *message, size) {
+void writeMessage(int fileDescriptor, char *message) {
 	int nOfBytes;
-
-	nOfBytes = sendto(fileDescriptor, message, strlen(message) + 1, 0, (struct sockaddr *)&serverName, size);
+	socklen_t size;
+	nOfBytes = sendto(fileDescriptor, message, sizeof(message), 0, (struct sockaddr *)&serverName, size);
 	if(nOfBytes < 0) {
 		perror("writeMessage - Could not write data\n");
 		exit(EXIT_FAILURE);
 	}
 }
 // recieving the respond message from the server and printing it out on the screen
-void receiveMessage(int sock, size)
+void receiveMessage(int sock)
 {
 	char buffer[MAXMSG];
 
-	int nOfBytes = recvfrom(sock, buffer, MAXMSG, 0, (struct sockaddr*) &serverName, &size);
+	int nOfBytes = recvfrom(sock, buffer, MAXMSG, 0, (struct sockaddr*) &serverName, sizeof(serverName));
 	if(nOfBytes < 0) {
 		perror("Could not read data from client\n");
 		exit(EXIT_FAILURE);
@@ -73,7 +73,7 @@ void* ListenToMessages(void *pointer)
 
 	while(1)
 	{
-		receiveMessage(*socket, size);
+		receiveMessage(*socket);
 	}
 }
 
@@ -106,12 +106,13 @@ int main(int argc, char *argv[]) {
 	/* Initialize the socket address */
 	initSocketAddress(&serverName, hostName, PORT);
 
+	size = sizeof(struct sockaddr_in);
+
 	/* Connect to the server */
 	if(connect(sock, (struct sockaddr *)&serverName, sizeof(serverName)) < 0) {
 		perror("Could not connect to server\n");
 		exit(EXIT_FAILURE);
 	}
-
 	else
 	{	//creating a thread that will handle the messages to every client
 		func1 = pthread_create(&thread1, NULL, ListenToMessages, &sock);
@@ -120,7 +121,6 @@ int main(int argc, char *argv[]) {
 			perror("Pthread is not working...");
 			exit(EXIT_SUCCESS);
 		}
-
 	}
 
 
@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
 		messageString[messageLength - 1] = '\0';
 
 		if(strncmp(messageString,"quit\n",messageLength) != 0) {
-			writeMessage(sock, messageString, size);
+			writeMessage(sock, messageString);
 		}
 		else {
 			close(sock);
