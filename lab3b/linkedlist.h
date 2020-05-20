@@ -8,6 +8,7 @@
 #ifndef LINKEDLIST_H_
 #define LINKEDLIST_H_
 
+
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -53,5 +54,6 @@ void addLast(rtp *pkgHeader);
 void addHeader(rtp *pkgHeader);
 void removehead();
 void printAllPackages();
+uint16_t checksum(void *header, size_t headerSize);
 
 #endif /* LINKEDLIST_H_ */
