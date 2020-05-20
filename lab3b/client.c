@@ -16,6 +16,7 @@
 
 
 struct sockaddr_in serverName;
+fd_set set;
 
 
 /* initSocketAddress
@@ -83,6 +84,8 @@ void* ListenToMessages(void *pointer)
 }
 
 //function for the sliding window
+
+
 void *Slidingwindow(void *data)
 {
 	int filedescriptor = (int)(*(int*)data);
@@ -90,7 +93,41 @@ void *Slidingwindow(void *data)
 	// gives the set zero bits for all filedescriptors
 	FD_ZERO(&set);
 	// sets all bits of sock in set
-	FD_SET(&set);
+	FD_SET(filedescriptor, &set);
+
+	socklen_t size = sizeof(struct sockaddr_in);
+	rtp *Header;
+	int n0fBytes;
+
+	Header = (rtp*)calloc(size, sizeof(rtp));
+
+	if (Header == NULL){
+		printf("calloc failed....\n"); // if calloc returns null, it failed
+		exit(EXIT_FAILURE);
+	}
+
+	else
+	{
+
+	}
+}
+
+//sending packages
+void SendMessage(int socket, socklen_t size)
+{
+
+}
+
+// Reads and prints data read from the socket
+int readMessage(int filedescriptor, socklen_t size)
+{
+	// GIves the set zero bits for all filedescriptors
+	FD_ZERO(&set);
+	// Sets all bits of sock in set
+	FD_SET(filedescriptor, &set);
+
+	int n0fBytes;
+	size = sizeof(struct sockaddr_in);
 }
 
 
