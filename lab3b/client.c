@@ -12,6 +12,7 @@
 #define hostNameLength 50
 #define messageLength  256
 #define MAXMSG 512
+#define windowsize 4
 
 
 struct sockaddr_in serverName;
@@ -80,6 +81,18 @@ void* ListenToMessages(void *pointer)
 		receiveMessage(*socket);
 	}
 }
+
+//function for the sliding window
+void *Slidingwindow(void *data)
+{
+	int filedescriptor = (int)(*(int*)data);
+
+	// gives the set zero bits for all filedescriptors
+	FD_ZERO(&set);
+	// sets all bits of sock in set
+	FD_SET(&set);
+}
+
 
 int main(int argc, char *argv[]) {
 	int sock;
