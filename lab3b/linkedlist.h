@@ -1,13 +1,12 @@
 /*
  * linkedlist.h
  *
- *  Created on: May 18, 2020
+ *  Created on: May 20, 2020
  *      Author: student
  */
 
 #ifndef LINKEDLIST_H_
 #define LINKEDLIST_H_
-
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -20,10 +19,16 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <sys/select.h>
+#include <stdbool.h>
+
 #define MAXMSG 512
-#define SYN 1
-#define SYN_ACK 2
+#define DATA 8
 #define ACK 3
+#define WAIT_TIMEOUT 6
+#define ESTABLISHED 7
+#define INIT 0
+
+bool loop;
 
 /*header*/
 typedef struct
@@ -47,11 +52,15 @@ typedef struct PackageList
 
 extern SentPackages *head;
 extern SentPackages *tail;
+extern bool loop;
 
 
 void addLast(rtp *pkgHeader);
 void addHeader(rtp *pkgHeader);
-void removehead();
+void removeHead();
 void printAllPackages();
+uint16_t checksum(void *header, size_t headerSize);
+
+
 
 #endif /* LINKEDLIST_H_ */
