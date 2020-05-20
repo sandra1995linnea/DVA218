@@ -20,5 +20,38 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <sys/select.h>
+#define MAXMSG 512
+#define SYN 1
+#define SYN_ACK 2
+#define ACK 3
+
+/*header*/
+typedef struct
+{
+	int flags;
+	int id;
+	int seq;
+	int windowsize;
+	uint16_t crc;
+	char data[MAXMSG];
+	//char *data;
+} rtp; // realiable transport protocol
+
+/* Linked list of sent packages with their timestamps*/
+typedef struct PackageList
+{
+	rtp *header;
+	time_t timestamp;
+	struct PackageList *next;
+}SentPackages;
+
+extern SentPackages *head;
+extern SentPackages *tail;
+
+
+void addLast(rtp *pkgHeader);
+void addHeader(rtp *pkgHeader);
+void removehead();
+void printAllPackages();
 
 #endif /* LINKEDLIST_H_ */
