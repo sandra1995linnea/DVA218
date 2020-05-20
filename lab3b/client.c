@@ -20,7 +20,7 @@
 #define SYN_ACK 2
 
 
-
+int  seqNumber;
 rtp *header;
 int state;
 int event;
