@@ -12,7 +12,6 @@
 #define hostNameLength 50
 #define messageLength  256
 #define MAXMSG 512
-#define windowsize 4
 
 #define WSIZE 2
 #define got_synack 5
@@ -93,6 +92,51 @@ void* ListenToMessages(void *pointer)
 	}
 }
 
+/*creates an ACK message and adds it to the packageList*/
+void createACKmessage()
+{
+	header->flags = ACK;
+	header->crc = 0;
+	header->crc = checksum((void*)&header, sizeof(header));
+	addHeader(header);
+}
+
+/* Removes the Syn message from packageList,
+ * creates a ACK message and sends it to the server
+ * */
+void sendACKevent(int fileDescriptor, socklen_t size )
+{
+	removeHead(); //remove SYN from packageList
+	createACKmessage();
+	//writeMessage(fileDescriptor, header, size);
+	printf("ACK sent to the server at timestamp: %ld\n", time(0));
+}
+
+/*creates a SYN message and adds it to the packageList*/
+void createSynMessage()
+{
+	header->flags = SYN;
+	header->id = 0;
+	header->seq = -1;
+	header->windowsize = WSIZE;
+	strcpy(header->data, "I want to start a Connection");
+	header->crc = 0;
+	header->crc = checksum((void*)&header, sizeof(header));
+
+	addHeader(header);
+}
+
+/* Sets the event and state variables for the connectionSetup loop
+ * creates a SYN message and sends it to the server
+ * */
+void sendSYNevent(int fileDescriptor, socklen_t size)
+{
+	event = INIT;
+	state = WAIT_SYNACK;
+	createSynMessage();
+	//writeMessage(fileDescriptor, header, size);
+	printf("SYN sent to the server at timestamp: %ld\n", time(0));
+}
 
 /*Starting up a connection with the server, three way hanshake*/
 void conecctionSetup(int fileDescriptor, socklen_t size )
@@ -170,55 +214,8 @@ rtp *createDataMessage()
 	return header;
 }
 
-/*creates a SYN message and adds it to the packageList*/
-void createSynMessage()
-{
-	header->flags = SYN;
-	header->id = 0;
-	header->seq = -1;
-	header->windowsize = WSIZE;
-	strcpy(header->data, "I want to start a Connection");
-	header->crc = 0;
-	header->crc = checksum((void*)&header, sizeof(header));
-
-	addHeader(header);
-}
-
-/*creates an ACK message and adds it to the packageList*/
-void createACKmessage()
-{
-	header->flags = ACK;
-	header->crc = 0;
-	header->crc = checksum((void*)&header, sizeof(header));
-	addHeader(header);
-}
-
-/* Removes the Syn message from packageList,
- * creates a ACK message and sends it to the server
- * */
-void sendACKevent(int fileDescriptor, socklen_t size )
-{
-	removeHead(); //remove SYN from packageList
-	createACKmessage();
-	//writeMessage(fileDescriptor, header, size);
-	printf("ACK sent to the server at timestamp: %ld\n", time(0));
-}
-
-/* Sets the event and state variables for the connectionSetup loop
- * creates a SYN message and sends it to the server
- * */
-void sendSYNevent(int fileDescriptor, socklen_t size )
-{
-	event = INIT;
-	state = WAIT_SYNACK;
-	createSynMessage();
-	//writeMessage(fileDescriptor, header, size);
-	printf("SYN sent to the server at timestamp: %1d\n", time(0));
-}
 
 //function for the sliding window
-
-
 void *Slidingwindow(void *data)
 {
 	int filedescriptor = (int)(*(int*)data);
@@ -238,11 +235,12 @@ void *Slidingwindow(void *data)
 		printf("calloc failed....\n"); // if calloc returns null, it failed
 		exit(EXIT_FAILURE);
 	}
-
 	else
 	{
 
 	}
+
+	return NULL; // TODO!
 }
 
 //sending packages
@@ -261,6 +259,8 @@ int readMessage(int filedescriptor, socklen_t size)
 
 	int n0fBytes;
 	size = sizeof(struct sockaddr_in);
+
+	// TODO!
 }
 
 
