@@ -4,7 +4,7 @@
  *  Created on: May 18, 2020
  *      Author: student
  */
-#include "list.h"
+#include "linkedlist.h"
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -16,6 +16,7 @@
 
 SentPackages *head = NULL;
 SentPackages *tail = NULL;
+bool loop = true;
 
 /*Add header in the linked list of sent packages*/
 void addHeader(rtp *pkgHeader) {
@@ -25,7 +26,7 @@ void addHeader(rtp *pkgHeader) {
 		head->timestamp = time(0);
 		head->next = NULL;
 		tail = (head);
-		printf("Header was added in the linkedList");
+		printf("Header was added to the linkedList\n");
 		return;
 	} else {
 		addLast(pkgHeader);
@@ -43,7 +44,7 @@ void addLast(rtp *pkgHeader) {
 			current->next->timestamp = time(0);
 			current->next->next = NULL;
 			tail = current->next;
-			printf("Header was added last in the linkedList");
+			printf("Header was added last in the linkedList\n");
 			return;
 		}
 
@@ -53,9 +54,9 @@ void addLast(rtp *pkgHeader) {
 }
 
 /*Removes first package in the list, which is the last package sent*/
-void removehead() {
+void removeHead() {
 	if (head == NULL) {
-		printf("The list is empty, nothing to remove");
+		printf("The list is empty, nothing to remove\n");
 	}
 	if (head->next == NULL) {
 		free(head);
@@ -87,25 +88,25 @@ uint16_t checksum(void *header, size_t headerSize)
 	uint32_t sum = 0xffff;
 
 	// adds the 16bit blocks and sumatesit to sum variables
-	for (size_t i = 0; i + 1 < datalength; i += 2) 
+	for (size_t i = 0; i + 1 < headerSize; i += 2)
 	{
 		uint16_t word;
-		memcpy(&word, data + 1, 2);
+		memcpy(&word, data + i, 2);
 		sum += ntohs(word);
-		//if sum variable is bigger thatn 16bits (max ) substackt 16 bits
+		//if sum variable is bigger that  16bits (max ) substackt 16 bits
 		if (sum > 0xffff) {
 			sum -= 0xffff;
 		}
 	}
 
 	/*Handles partial block at the end of data, if data summation is not evenly divideable*/
-	if (datalength & 1)
+	if (headerSize & 1)
 	{
 		uint16_t word = 0;
-		memcpy(&word, data + datalength - 1, 1);
+		memcpy(&word, data + headerSize - 1, 1);
 		sum += ntohs(word);
 
-		if (sum > 0xffff) 
+		if (sum > 0xffff)
 		{
 			sum -= 0xffff;
 		}
@@ -120,15 +121,23 @@ uint16_t checksum(void *header, size_t headerSize)
  {
  rtp *packageHeader = malloc(sizeof(rtp));
 
+
  packageHeader->seq = 1;
+ packageHeader->flags = 2;
+ packageHeader->id = -1;
+ packageHeader->windowsize = 2;
  packageHeader->crc = 0;
 	strcpy(packageHeader->data, "Hello\0");
 
-	packageHeader->crc = checksum((void*)packageHeader, sizeof(*packageHeader));
+	packageHeader->crc = checksum((void*)&packageHeader, sizeof(*packageHeader));
 	uint16_t x;
 	x = packageHeader->crc;
 
+	 rtp *head = malloc(sizeof(rtp));
+	 head->seq = 2;
+
  addHeader(packageHeader);
+ addHeader(head);
  printAllPackages();
 
  }*/
