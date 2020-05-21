@@ -42,19 +42,6 @@ void initSocketAddress(struct sockaddr_in *name, char *hostName, unsigned short 
 	name->sin_addr = *(struct in_addr *)hostInfo->h_addr;
 }
 
-/* writeMessage
- * Writes the message to the file (socket)
- * denoted by socket.
- */
-void writeMessage(int socket, char *message, size_t size) {
-	int nOfBytes;
-	socklen_t length = sizeof(serverName);
-	nOfBytes = sendto(socket, message, size, 0, (struct sockaddr *)&serverName, length);
-	if(nOfBytes < 0) {
-		perror("writeMessage - Could not write data\n");
-		exit(EXIT_FAILURE);
-	}
-}
 
 
 /*all the clients are listening after a message
@@ -122,7 +109,7 @@ void sendSYNevent(int socket)
 
 	printf("Sending package with crc = %d\n", header->crc);
 
-	writeMessage(socket,(char*) header, sizeof(rtp));
+	writeMessage(socket,(char*) header, sizeof(rtp), serverName, sizeof(serverName));
 
 	printf("SYN sent to the server at timestamp: %ld\n", time(0));
 }
@@ -319,7 +306,7 @@ int main(int argc, char *argv[]) {
 		messageString[messageLength - 1] = '\0';
 
 		if(strncmp(messageString,"quit\n",messageLength) != 0) {
-			writeMessage(sock, messageString, strlen(messageString));
+		//	writeMessage(sock, messageString, strlen(messageString));
 		}
 		else {
 			close(sock);
