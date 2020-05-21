@@ -11,6 +11,9 @@
  * Writes the message to the file (socket)
  * denoted by socket.
  */
+
+rtp *setupHeader = NULL;
+
 void writeMessage(int socket, char *message, size_t size, struct sockaddr_in serverAddress, socklen_t length) {
 	int nOfBytes;
 	//socklen_t length = sizeof(serverAddress);
@@ -73,3 +76,15 @@ rtp * readMessages(int socket) {
 	return header;
 }
 
+/*creates headers use in connectionSetup*/
+void createSetupHeader(int type, int wsize)
+{
+	setupHeader = calloc(1, sizeof(rtp));
+	setupHeader->flags = type;
+	setupHeader->id = 0;
+	setupHeader->seq = -1;
+	setupHeader->windowsize = wsize;
+	strcpy(setupHeader->data, "I want to start a Connection");
+	setupHeader->crc = 0;
+	setupHeader->crc = checksum((void*)setupHeader, sizeof(rtp));
+}

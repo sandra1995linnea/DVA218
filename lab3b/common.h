@@ -16,7 +16,11 @@
 #define WAIT_SYN 4
 #define WAIT_SYNACK 5
 
+extern rtp *setupHeader;
+
 void writeMessage(int socket, char *message, size_t size, struct sockaddr_in serverAddress, socklen_t length);
+void createSetupHeader(int type,int wsize);
 rtp * readMessages(int socket);
+
 
 #endif /* COMMON_H_ */
