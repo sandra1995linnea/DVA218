@@ -81,6 +81,7 @@ void sendACKevent(int socket)
 
 /* Sets the event and state variables for the connectionSetup loop
  * creates a SYN message and sends it to the server
+ * Adds the SYN message to the packageList
  * */
 void sendSYNevent(int socket)
 {

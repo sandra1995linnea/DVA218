@@ -10,6 +10,7 @@
 #define PORT 5555
 #define MAXMSG 512
 #define WSIZE 2
+#define WAIT_ACK 9
 
 /* makeSocket
  * Creates and names a socket in the Internet
@@ -63,6 +64,70 @@ void respondToClient(int fileDescriptor, char *message)
 	}*/
 }
 
+
+
+/* Initializes event and state variables for connectionSetup loop
+ * creates an SYN-ACK message and sends it to the client
+ * */
+void sendSynACKevent(int socket)
+{
+	event = INIT;
+	state = WAIT_SYN;
+
+	createSetupHeader(SYNACK, 2);
+	rtp *header = setupHeader;
+
+	printf("Sending package with crc = %d\n", header->crc);
+
+	//writeMessage(socket,(char*) header, sizeof(rtp), serverName, sizeof(serverName));
+
+	printf("SYN-ACK sent to the client at timestamp: %ld\n", time(0));
+
+}
+
+/*Starting up a connection with the client, three way hanshake*/
+void connectionSetup(int fileDescriptor)
+{
+	sendSynACKevent(fileDescriptor);
+
+		while(1)
+		{
+			//reads the SYN and ACK message from client
+			//event = readMessage(fileDescriptor, size);
+
+			switch (state)
+			{
+			  case WAIT_SYN:
+			  {
+				//Server has received a response from the client, a SYN message
+				if (event == SYN)
+				{
+					state = WAIT_ACK;
+					sendSynACKevent(fileDescriptor);
+				}
+				break;
+			  }
+			  case WAIT_ACK:
+			  {
+				//Server received an ACK from client
+				if (event == ACK)
+				{
+					printf("Server is connected\n");
+					return;
+				}
+				break;
+			  }
+			  default:
+			  {
+				  printf("Default reached!");
+				  return;
+				  break;
+			  }
+
+			}
+
+		}
+}
 
 
 int main(int argc, char *argv[]) {
