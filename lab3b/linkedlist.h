@@ -37,7 +37,7 @@ typedef struct
 	int id;
 	int seq;
 	int windowsize;
-	uint16_t crc;
+	uint16_t crc;  //is the checksum for the whole package or just on the header?
 	char data[MAXMSG];
 	//char *data;
 } rtp; // realiable transport protocol

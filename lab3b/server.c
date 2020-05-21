@@ -5,13 +5,11 @@
  *      Author: student
  */
 #include "linkedlist.h"
-
+#include "common.h"
 
 #define PORT 5555
 #define MAXMSG 512
-
-
-struct sockaddr_in clientName;
+#define WSIZE 2
 
 /* makeSocket
  * Creates and names a socket in the Internet
@@ -58,50 +56,24 @@ int makeSocket(unsigned short int port) {
 void respondToClient(int fileDescriptor, char *message)
 {
 	int nrOfBytes;
-	nrOfBytes = sendto(fileDescriptor, message, strlen(message) + 1, 0, (struct sockaddr *)&clientName, sizeof(clientName));
-	if(nrOfBytes < 0) {
+	//nrOfBytes = sendto(fileDescriptor, message, strlen(message) + 1, 0, (struct sockaddr *)&clientName, sizeof(clientName));
+/*	if(nrOfBytes < 0) {
 		perror("writeMessage - Could not write data\n");
 		exit(EXIT_FAILURE);
-	}
+	}*/
 }
 
-
-/* readMessageFromClient
- * Reads and prints data read from the file (socket
- * denoted by the file descriptor 'fileDescriptor'.
- */
-int readMessageFromClient(int fileDescriptor, socklen_t size) {
-	char buffer[MAXMSG];
-	int nOfBytes;
-
-	nOfBytes = recvfrom(fileDescriptor, buffer, MAXMSG, 0, (struct sockaddr *)&clientName, &size);
-	if(nOfBytes < 0) {
-		perror("Could not read data from client\n");
-		exit(EXIT_FAILURE);
-	}
-	else
-		if(nOfBytes == 0)
-			/* End of file */
-			return(-1);
-		else {
-			/* Data read */
-			printf(">Incoming message: %s\n", buffer);
-
-			respondToClient(fileDescriptor, "I hear you duede");
-		}
-	return(0);
-}
 
 
 int main(int argc, char *argv[]) {
 	int sock;
 	fd_set activeFdSet, set; /* Used by select */
-	socklen_t size;
+	//socklen_t size;
 
 	/* Create a socket and set it up to accept connections */
 	sock = makeSocket(PORT);
 
-	size = sizeof(struct sockaddr_in);
+	//size = sizeof(struct sockaddr_in);
 
 	/* Initialize the set of active sockets */
 	//saving all the active sockets in a struct
@@ -113,7 +85,7 @@ int main(int argc, char *argv[]) {
 	while(1) {
 
 		/* Data arriving on an already connected socket */
-		if(readMessageFromClient(sock, size) < 0)
+		if(readMessages(sock) < 0)
 		{
 			close(sock);
 			FD_CLR(sock, &activeFdSet);
