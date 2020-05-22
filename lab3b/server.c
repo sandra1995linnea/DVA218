@@ -23,6 +23,11 @@
  * the system replaces that with the machine's
  * actual address.
  */
+
+bool l_state = true;
+int event = INIT;
+
+
 int makeSocket(unsigned short int port) {
 	int sock;
 	struct sockaddr_in name;
@@ -174,6 +179,60 @@ void connectionSetup(int fileDescriptor)
 		}
 }
 
+//teardown function. Hnadles the cases when the server wants to end a connection
+void tear_down(int filedescriptor, socklen_t size)
+{
+	int event = INIT;
+	rtp header;
+
+	header.windowsize = 1;
+	header.id = 0;
+	header.seq = -1;
+	header.flags = send_FINACK;
+
+	header.crc = 0;
+	header.crc = checksum ((void*) &header, sizeof(header));
+
+	writeMessage(filedescriptor, header, size);
+	create_header (&header);
+	printf("FIN and ACK were sent to the server. time: %ld\n", time(0));
+
+	//waiting for ACK
+	state = wait_ACK;
+
+	//loop that handles the different cases of teardown
+	while(loop == true)
+	{
+		//handle incoming packages
+		event = read_message(filedescriptor, size);
+
+		//we use a switch in order to handle the different possible scenarios of teardown
+		switch(state)
+		{
+			case wait_ACK:
+			{
+				if(event == receive_ACK)
+				{
+					printf("Server shut down\n");
+					state = ESTABLISHED;
+					event = INIT;
+
+					l_state = false;
+					close(filedescriptor);
+					return;
+				}
+				break;
+			}
+
+			default:
+			{
+				printf("Teardown is complete \n");
+				return;
+				break;
+			}
+		}
+	}
+}
 
 int main(int argc, char *argv[]) {
 	int sock;

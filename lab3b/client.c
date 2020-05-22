@@ -17,6 +17,7 @@
 #define w_sending 6
 #define w_waiting 7
 
+
 int  seqNumber;
 rtp *header;
 int state;
@@ -255,6 +256,92 @@ void *Slidingwindow(void *data)
 	return NULL; // TODO!
 }
 
+//teardown function
+//handles the cases when the client wants to shut the connection down
+void tear_down (int filedescriptor, socklen_t size)
+{
+	int event = INIT;
+
+	//first we need to send a SYN towards the server side
+	header->windowsize = 1;
+	header->id = 0;
+	header->flags = send_FIN;
+	header->seq = -1;
+	header->crc = 0;
+
+	header->crc = checksum ((void*) &header, sizeof(header));
+	writeMessage (filedescriptor, header, size);
+	create_header (&header);
+	//send the message that the FIN was send
+	printf ("FIN was send to server! time: %ld!\n" , time(0));
+
+	state = wait_FINACK;
+
+	//loop to handle events from approaching packages
+	while (loop == true)
+	{
+		//receive packages
+		event = readMessage(filedescriptor, size);
+
+		switch(state) //change current state of connection setup according to case
+		{
+			case wait_FINACK:
+			{
+				 if(event == receive_FINACK)
+				 {
+					 //FIN and ACK were received
+					 state = WAIT_TIMEOUT;
+
+					 removeHead();
+					 event = INIT;
+					 header->crc = 0;
+					 header->crc = checksum((void*) &header, sizeof(header));
+
+					 header->flags = send_ACK;
+					 writeMessage (filedescriptor, header, size);
+					 printf("ACK was send to the server. time: %ld\n", time(0));
+					 create_header(&header);
+					 //we send the timer again when it is done
+				 }
+				 break;
+			}
+
+			//when ACK gets lost and we
+			case WAIT_TIMEOUT:
+			{
+				if (event == receive_FINACK)
+				{
+					//in case ACK is lost and we receive SYN and ACK before the time is out.
+					printf("Wait for timeout. received FIN and ACK\n");
+					remove_head();
+
+					header->crc=0;
+					header->crc = checksum ((void*) &header, sizeof(header));
+					header->flags = send_ACK;
+
+					writeMessage (filedescriptor, header, size);
+					printf("ACK was send again to server. time: %ld\n", time(0));
+					create_header(&header);
+				}
+				break;
+			}
+
+			case ESTABLISHED:
+			{
+				printf("Client shut down\n");
+				remove_head();
+				return;
+				break;
+			}
+			default:
+			{
+				printf("The teardown is finished\n");
+				return;
+				break;
+			}
+		}
+	}
+}
 
 
 int main(int argc, char *argv[]) {
