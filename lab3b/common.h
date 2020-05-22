@@ -16,6 +16,14 @@
 #define WAIT_SYN 4
 #define WAIT_SYNACK 5
 
+#define send_FIN 9
+#define receive_FINACK 10
+#define wait_FINACK 11
+#define send_ACK 12
+#define send_FINACK 13
+#define wait_ACK 14
+#define receive_ACK 15
+
 extern rtp *setupHeader;
 
 void writeMessage(int socket, char *message, size_t size, struct sockaddr_in serverAddress, socklen_t length);
