@@ -10,6 +10,7 @@
 #define PORT 5555
 #define MAXMSG 512
 #define WSIZE 2
+#define w_receiving 6
 
 /* makeSocket
  * Creates and names a socket in the Internet
@@ -61,6 +62,50 @@ void respondToClient(int fileDescriptor, char *message)
 		perror("writeMessage - Could not write data\n");
 		exit(EXIT_FAILURE);
 	}*/
+}
+
+void *Slidingwindow(void *data)
+{
+	int filedescriptor = (int)(*(int*)data);
+
+		// gives the set zero bits for all filedescriptors
+		FD_ZERO(&set);
+		// sets all bits of sock in set
+		FD_SET(filedescriptor, &set);
+
+		socklen_t size = sizeof(struct sockaddr_in);
+		rtp *header;
+		int n0fBytes;
+
+		header = (rtp*)calloc(1, sizeof(rtp));
+
+		if (header == NULL){
+			printf("calloc failed....\n"); // if calloc returns null, it failed
+			exit(EXIT_FAILURE);
+		}
+		else
+		{   //mottagaren står bara i ett tillstånd, håll koll på seqnr
+			while(1)
+			{
+				switch(state)
+				{
+					case: w_receiving
+
+					//packet data error check
+
+					if()//approved data
+					{
+						//send ACK
+					}
+					else
+					{
+						//destroypackets
+					}
+
+					break;
+				}
+			}
+		}
 }
 
 

@@ -13,7 +13,6 @@
  */
 void writeMessage(int socket, char *message, size_t size, struct sockaddr_in serverAddress, socklen_t length) {
 	int nOfBytes;
-	//socklen_t length = sizeof(serverAddress);
 	nOfBytes = sendto(socket, message, size, 0, (struct sockaddr *)&serverAddress, length);
 	if(nOfBytes < 0) {
 		perror("writeMessage - Could not write data\n");

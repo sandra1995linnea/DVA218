@@ -14,6 +14,8 @@
 #define messageLength  256
 #define MAXMSG 512
 #define WSIZE 2
+#define w_sending 6
+#define w_waiting 7
 
 int  seqNumber;
 rtp *header;
@@ -202,58 +204,76 @@ void *Slidingwindow(void *data)
 	FD_SET(filedescriptor, &set);
 
 	socklen_t size = sizeof(struct sockaddr_in);
-	rtp *Header;
+	rtp *header;
 	int n0fBytes;
 
-	Header = (rtp*)calloc(1, sizeof(rtp));
+	header = (rtp*)calloc(1, sizeof(rtp));
 
-	if (Header == NULL){
+	if (header == NULL){
 		printf("calloc failed....\n"); // if calloc returns null, it failed
 		exit(EXIT_FAILURE);
 	}
 	else
 	{
+		while(1)
+		{
+			switch(state)
+			{
+				case: w_sending
+				writeMessage(filedescriptor, (char*) header, sizeof(rtp), serverName, sizeof(serverName));
+				if(header->windowsize = WSIZE) //window is full
+				{
+					w_waiting;
+				}
 
+				else if() //no more packets to send
+				{
+					state = w_waiting;
+				}
+
+				else if () //timeout, resend from N
+				{
+					state = w_sending;
+				}
+
+				else if(event == ACK)
+				{
+					header->windowsize++;
+					state = w_sending;
+				}
+
+				break;
+
+				case: w_waiting
+				if(event == ACK) //ACK arrives
+				{
+					if() //there are still packets to be sent
+					{
+						header->windowsize++;
+						state = w_sending;
+					}
+
+					else if() //timeout, resend from N
+					{
+						//destroy the packets and go back to sending
+					}
+
+					else if() //waiting for more acks
+					{
+						header->windowsize++;
+						state = w_waiting;
+					}
+
+				}
+
+				break;
+			}
+		}
 	}
 
 	return NULL; // TODO!
 }
 
-//sending packages
-void SendMessage(int socket, socklen_t size)
-{
-	/*while(1)
-	{	//check if we have reached the package limit
-		if(seqnr == the package limit){
-
-		}
-	}*/
-
-}
-
-// Reads and prints data read from the socket
-int readMessage(int filedescriptor, socklen_t size)
-{
-	// GIves the set zero bits for all filedescriptors
-	FD_ZERO(&set);
-	// Sets all bits of sock in set
-	FD_SET(filedescriptor, &set);
-
-	int n0fBytes;
-	size = sizeof(struct sockaddr_in);
-	rtp *header = calloc(1, sizeof(rtp));
-
-	if (header == NULL)
-	{
-		printf("calloc failed....");
-		exit(EXIT_FAILURE);
-	}
-	else{
-
-	}
-
-	// TODO!
-}
 
 
 int main(int argc, char *argv[]) {
