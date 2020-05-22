@@ -13,6 +13,10 @@
 #define WAIT_ACK 9
 #define w_receiving 6
 
+int state;
+int event;
+struct sockaddr_in clientName;
+
 /* makeSocket
  * Creates and names a socket in the Internet
  * name-space. The socket created exists
@@ -69,7 +73,7 @@ void respondToClient(int fileDescriptor, char *message)
 		exit(EXIT_FAILURE);
 	}*/
 }
-
+/*
 void *Slidingwindow(void *data)
 {
 	int filedescriptor = (int)(*(int*)data);
@@ -112,7 +116,7 @@ void *Slidingwindow(void *data)
 				}
 			}
 		}
-}
+}/*
 
 
 
@@ -124,12 +128,11 @@ void sendSynACKevent(int socket)
 	event = INIT;
 	state = WAIT_SYN;
 
-	createSetupHeader(SYNACK, 2);
-	rtp *header = setupHeader;
+	rtp *setupHeader = createSetupHeader(SYNACK, 2);
 
-	printf("Sending package with crc = %d\n", header->crc);
+	printf("Sending package with crc = %d\n", setupHeader->crc);
 
-	//writeMessage(socket,(char*) header, sizeof(rtp), serverName, sizeof(serverName));
+	//writeMessage(socket,(char*) setupHeader, sizeof(rtp), serverName, sizeof(serverName));
 
 	printf("SYN-ACK sent to the client at timestamp: %ld\n", time(0));
 
@@ -138,45 +141,46 @@ void sendSynACKevent(int socket)
 /*Starting up a connection with the client, three way hanshake*/
 void connectionSetup(int fileDescriptor)
 {
-	sendSynACKevent(fileDescriptor);
+	//sendSynACKevent(fileDescriptor);
+	rtp* packet;
+	state = WAIT_SYN;
 
-		while(1)
+	while(1)
+	{
+		//reads the SYN and ACK message from client
+		packet = readMessages(fileDescriptor);
+
+		switch (state)
 		{
-			//reads the SYN and ACK message from client
-			//event = readMessage(fileDescriptor, size);
-
-			switch (state)
+		  case WAIT_SYN:
+		  {
+			//Server has received a response from the client, a SYN message
+			if (packet->flags == SYN)
 			{
-			  case WAIT_SYN:
-			  {
-				//Server has received a response from the client, a SYN message
-				if (event == SYN)
-				{
-					state = WAIT_ACK;
-					sendSynACKevent(fileDescriptor);
-				}
-				break;
-			  }
-			  case WAIT_ACK:
-			  {
-				//Server received an ACK from client
-				if (event == ACK)
-				{
-					printf("Server is connected\n");
-					return;
-				}
-				break;
-			  }
-			  default:
-			  {
-				  printf("Default reached!");
-				  return;
-				  break;
-			  }
-
+				state = WAIT_ACK;
+				sendSynACKevent(fileDescriptor);
+				printf("SYN received, sent SYNACK, waiting for ACK\n");
 			}
-
+			break;
+		  }
+		  case WAIT_ACK: // TODO: Add timeouts!
+		  {
+			//Server received an ACK from client
+			if (packet->flags == ACK)
+			{
+				printf("Ack received, server is connected\n");
+				return;
+			}
+			break;
+		  }
+		  default:
+		  {
+			  printf("Default reached!\n");
+			  return;
+			  break;
+		  }
 		}
+	}
 }
 
 //teardown function. Hnadles the cases when the server wants to end a connection
@@ -193,8 +197,8 @@ void tear_down(int filedescriptor, socklen_t size)
 	header.crc = 0;
 	header.crc = checksum ((void*) &header, sizeof(header));
 
-	writeMessage(filedescriptor, header, size);
-	create_header (&header);
+	writeMessage(filedescriptor, (char*) &header, sizeof(rtp), clientName, sizeof(clientName));
+	rtp* setupHeader = createSetupHeader(receive_FINACK, WSIZE);
 	printf("FIN and ACK were sent to the server. time: %ld\n", time(0));
 
 	//waiting for ACK
@@ -204,20 +208,25 @@ void tear_down(int filedescriptor, socklen_t size)
 	while(loop == true)
 	{
 		//handle incoming packages
-		event = read_message(filedescriptor, size);
+		rtp* receivedPacket = readMessages(filedescriptor);
+		if(receivedPacket == NULL)
+		{
+			//....
+		}
+
 
 		//we use a switch in order to handle the different possible scenarios of teardown
 		switch(state)
 		{
 			case wait_ACK:
 			{
-				if(event == receive_ACK)
+				if(receivedPacket->flags == ACK)
 				{
 					printf("Server shut down\n");
 					state = ESTABLISHED;
 					event = INIT;
 
-					l_state = false;
+					state = false;
 					close(filedescriptor);
 					return;
 				}
@@ -237,12 +246,9 @@ void tear_down(int filedescriptor, socklen_t size)
 int main(int argc, char *argv[]) {
 	int sock;
 	fd_set activeFdSet, set; /* Used by select */
-	//socklen_t size;
 
 	/* Create a socket and set it up to accept connections */
 	sock = makeSocket(PORT);
-
-	//size = sizeof(struct sockaddr_in);
 
 	/* Initialize the set of active sockets */
 	//saving all the active sockets in a struct
@@ -251,7 +257,7 @@ int main(int argc, char *argv[]) {
 
 	printf("\n[waiting for connections...]\n");
 
-	ConnectionSetup(sock);
+	connectionSetup(sock);
 
 	printf("\n[waiting for messages...]\n");
 

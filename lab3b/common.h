@@ -27,7 +27,7 @@
 extern rtp *setupHeader;
 
 void writeMessage(int socket, char *message, size_t size, struct sockaddr_in serverAddress, socklen_t length);
-void createSetupHeader(int type,int wsize);
+rtp * createSetupHeader(int type, int wsize);
 rtp * readMessages(int socket);
 
 

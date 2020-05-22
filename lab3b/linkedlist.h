@@ -20,6 +20,7 @@
 #include <netdb.h>
 #include <sys/select.h>
 #include <stdbool.h>
+#include <sys/time.h>
 
 #define MAXMSG 512
 #define DATA 8
