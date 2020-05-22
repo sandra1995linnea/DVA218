@@ -59,55 +59,39 @@ void* ListenToMessages(void *pointer)
 	}
 }
 
-/*creates an ACK message and adds it to the packageList*/
-rtp* createACKmessage()
-{
-	header = calloc(1, sizeof(rtp));
-	header->flags = ACK;
-	header->crc = 0;
-	header->crc = checksum((void*)&header, sizeof(header));
-	addHeader(header);
-	return header;
-}
 
 /* Removes the Syn message from packageList,
- * creates a ACK message and sends it to the server
+ * creates an ACK message and sends it to the server
  * */
-void sendACKevent(int fileDescriptor, socklen_t size )
+void sendACKevent(int socket)
 {
-
+	event = INIT;
+	state = WAIT_TIMEOUT;
 	removeHead(); //remove SYN from packageList
 	createACKmessage();
-	//writeMessage(fileDescriptor, header, size);
+	header = setupHeader;
+	addHeader(header);
+	printf("Sending package with crc = %d\n", header->crc);
+
+	writeMessage(socket,(char*) header, sizeof(rtp), serverName, sizeof(serverName));
+
 	printf("ACK sent to the server at timestamp: %ld\n", time(0));
 
 }
 
-/*creates a SYN message and adds it to the packageList*/
-rtp* createSynMessage()
-{
-	header = calloc(1, sizeof(rtp));
-	header->flags = SYN;
-	header->id = 0;
-	header->seq = -1;
-	header->windowsize = WSIZE;
-	strcpy(header->data, "I want to start a Connection");
-	header->crc = 0;
-	header->crc = checksum((void*)header, sizeof(rtp));
 
-	addHeader(header);
-
-	return header;
-}
 
 /* Sets the event and state variables for the connectionSetup loop
  * creates a SYN message and sends it to the server
+ * Adds the SYN message to the packageList
  * */
 void sendSYNevent(int socket)
 {
 	event = INIT;
 	state = WAIT_SYNACK;
 	createSynMessage();
+	header = setupHeader;
+	addHeader(header);
 
 	printf("Sending package with crc = %d\n", header->crc);
 
@@ -117,12 +101,11 @@ void sendSYNevent(int socket)
 }
 
 /*Starting up a connection with the server, three way hanshake*/
-void conecctionSetup(int fileDescriptor, socklen_t size )
+void connectionSetup(int fileDescriptor)
 {
-	header = malloc(sizeof(rtp));
 	sendSYNevent(fileDescriptor);
 
-	while(loop == true)
+	while(1)
 	{
 		//reads the response SYN-ACK and when the connection is established from the server
 		//event = readMessage(fileDescriptor, size);
@@ -134,10 +117,7 @@ void conecctionSetup(int fileDescriptor, socklen_t size )
 			//client has received a response from the server, a SYN-ACK
 			if (event == SYNACK)
 			{
-				event = INIT;
-				state = WAIT_TIMEOUT;
-				sendACKevent(fileDescriptor, size);
-
+				sendACKevent(fileDescriptor);
 			}
 			break;
 		  }
@@ -147,8 +127,8 @@ void conecctionSetup(int fileDescriptor, socklen_t size )
 			//client sends ACK again
 			if (event == SYNACK)
 			{
-				printf("OH NO! ACK is lost, I will send ACK again!\n");
-				sendACKevent(fileDescriptor, size);
+				printf("OH NO! ACK is lost, I will send it again!\n");
+				sendACKevent(fileDescriptor);
 			}
 			break;
 		  }
@@ -306,7 +286,7 @@ int main(int argc, char *argv[]) {
 	/* Initialize the socket address */
 	initSocketAddress(&serverName, hostName, PORT);
 
-	conecctionSetup(sock, size);
+	connectionSetup(sock);
 
 	//creating a thread that will handle the messages to every client
 	func1 = pthread_create(&thread1, NULL, ListenToMessages, &sock);
