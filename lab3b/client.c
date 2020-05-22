@@ -199,7 +199,7 @@ void *Slidingwindow(void *data)
 		{
 			switch(state)
 			{
-				case: w_sending
+				case w_sending:
 				writeMessage(filedescriptor, (char*) header, sizeof(rtp), serverName, sizeof(serverName));
 				if(header->windowsize = WSIZE) //window is full
 				{
@@ -224,7 +224,7 @@ void *Slidingwindow(void *data)
 
 				break;
 
-				case: w_waiting
+				case w_waiting:
 				if(event == ACK) //ACK arrives
 				{
 					if() //there are still packets to be sent

@@ -90,7 +90,7 @@ void *Slidingwindow(void *data)
 			{
 				switch(state)
 				{
-					case: w_receiving
+					case w_receiving:
 
 					//packet data error check
 
@@ -191,6 +191,10 @@ int main(int argc, char *argv[]) {
 	FD_SET(sock, &set);
 
 	printf("\n[waiting for connections...]\n");
+
+	ConnectionSetup(sock);
+
+	printf("\n[waiting for messages...]\n");
 
 	while(1) {
 
