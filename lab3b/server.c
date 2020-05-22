@@ -26,7 +26,7 @@
 
 bool l_state = true;
 int event = INIT;
-
+void tear_down (int filedescriptor, socklen_t, size);
 
 int makeSocket(unsigned short int port) {
 	int sock;
@@ -69,6 +69,8 @@ void respondToClient(int fileDescriptor, char *message)
 		exit(EXIT_FAILURE);
 	}*/
 }
+
+/*
 
 void *Slidingwindow(void *data)
 {
@@ -114,7 +116,7 @@ void *Slidingwindow(void *data)
 		}
 }
 
-
+*/
 
 /* Initializes event and state variables for connectionSetup loop
  * creates an SYN-ACK message and sends it to the client
