@@ -24,6 +24,7 @@ int event;
 struct sockaddr_in serverName;
 fd_set set;
 
+void tear_down (int filedescriptor, socklen_t, size);
 
 /* initSocketAddress
  * Initialises a sockaddr_in struct given a host name and a port.
