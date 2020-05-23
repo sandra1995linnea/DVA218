@@ -47,6 +47,7 @@ rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 				int crc = header->crc;
 				header->crc = 0;
 				int actual = checksum((void*)header, sizeof(*header));
+				//checks if the data is corrupted, will not return if it is
 				if(crc != actual) {
 					printf("Received packet with incorrect CRC! Packet says %d, actual crc is %d\n", crc, actual);
 					printf("Package data = %s, %d, %d\n", header->data, header->seq, header->crc);
@@ -75,6 +76,11 @@ rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 /*creates headers use in connectionSetup*/
 rtp * createSetupHeader(int type, int wsize, char* data)
 {
+	return createHeader(type, wsize, data, -1);
+}
+
+rtp * createHeader(int type, int wsize, char* data, int seq)
+{
 	rtp* setupHeader = calloc(1, sizeof(rtp));
 	if(!setupHeader)
 	{
@@ -84,7 +90,7 @@ rtp * createSetupHeader(int type, int wsize, char* data)
 
 	setupHeader->flags = type;
 	setupHeader->id = 0;
-	setupHeader->seq = -1;
+	setupHeader->seq = seq;
 	setupHeader->windowsize = wsize;
 	strcpy(setupHeader->data, data);
 	setupHeader->crc = 0;
@@ -92,3 +98,6 @@ rtp * createSetupHeader(int type, int wsize, char* data)
 
 	return setupHeader;
 }
+
+
+

@@ -32,6 +32,6 @@ extern rtp *setupHeader;
 void writeMessage(int socket, char *message, size_t size, struct sockaddr_in serverAddress, socklen_t length);
 rtp * createSetupHeader(int type, int wsize, char* data);
 rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size);
-
+rtp * createHeader(int type, int wsize, char* data, int seq);
 
 #endif /* COMMON_H_ */
