@@ -63,54 +63,68 @@ int makeSocket(unsigned short int port) {
 	return(sock);
 }
 
-/*
-/*
-
-void *Slidingwindow(void *data)
+//Sending an ACK on the approved package
+void sendACKevent(int socket, int seqnr)
 {
-	int filedescriptor = (int)(*(int*)data);
+	removeHead(); //remove SYN from packageList
 
-		// gives the set zero bits for all filedescriptors
-		FD_ZERO(&set);
-		// sets all bits of sock in set
-		FD_SET(filedescriptor, &set);
+	rtp* setupHeader = createSetupHeader(ACK, WSIZE, "Here's an ACK!");
+	addHeader(setupHeader);
+	printf("Sending package with crc = %d\n", setupHeader->crc);
 
-		socklen_t size = sizeof(struct sockaddr_in);
-		rtp *header;
-		int n0fBytes;
+	writeMessage(socket,(char*) setupHeader, sizeof(rtp), clientName, sizeof(clientName));
 
-		header = (rtp*)calloc(1, sizeof(rtp));
+	printf("ACK sent to the server at timestamp: %ld\n", time(0));
+}
 
-		if (header == NULL){
-			printf("calloc failed....\n"); // if calloc returns null, it failed
-			exit(EXIT_FAILURE);
-		}
-		else
-		{   //mottagaren står bara i ett tillstånd, håll koll på seqnr
-			while(1)
-			{
-				switch(state)
+
+void Slidingwindow(int filedescriptor)
+{
+
+	socklen_t size = sizeof(struct sockaddr_in);
+	rtp *header;
+	int seqnr = 0; //keeps track if the packets are coming in the right order or not
+
+   //mottagaren står bara i ett tillstånd, håll koll på seqnr
+	while(1)
+	{
+		switch(state)
+		{
+			case w_receiving:
+
+				header = readMessages(filedescriptor, (struct sockaddr*) &clientName, &size);
+				seqnr++;
+
+				//packet data error check
+				if(header->seq == seqnr && header->flags == DATA)//approved data
 				{
-					case w_receiving:
+					// print data:
+					printf("Data: %s, crc: %d, seq: %d", header->data, header->crc, header->seq);
 
-					//packet data error check
-
-					if()//approved data
-					{
-						//send ACK
-					}
-					else
-					{
-						//destroypackets
-					}
-
-					break;
+					sendACKevent(filedescriptor, seqnr);//sending an ack on the package
 				}
-			}
-		}
-}/*
+				if(header->flags == FIN) // if we received a FIN, the client does not want to stay connected
+				{
+					printf("No more packets to be sent, client is done sending");
+					return;
+				}
+				else
+					printf("Received and threw away packet that was either out of order or not a data packet\n");
 
-*/
+				// free allocated memory
+				free(header);
+				header = NULL;
+
+				break;
+
+			default:
+				printf("ERROR DEFAULT CASE REACHED IN Slidingwindow");
+				return;
+		}
+	}
+
+}
+
 
 /* Initializes event and state variables for connectionSetup loop
  * creates an SYN-ACK message and sends it to the client
@@ -233,13 +247,7 @@ int main(int argc, char *argv[]) {
 
 	printf("\n[waiting for messages...]\n");
 
-	while(1) {
+	Slidingwindow(sock);
 
-		/* Data arriving on an already connected socket */
-		if(readMessages(sock, (struct sockaddr*) &clientName, &clientNameLength) < 0)
-		{
-			close(sock);
-			FD_CLR(sock, &activeFdSet);
-		}
-	}
+	tear_down(sock);
 }
