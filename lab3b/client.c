@@ -203,13 +203,13 @@ void Slidingwindow(int filedescriptor)
 					if(header->seq > ackedPackets)
 						ackedPackets = header->seq; // the sequence number of the ack says how many packets the receiver has received
 
-					printf("Received ack on packet %d", ackedPackets);
+					printf("Received ack on packet %d\n", ackedPackets);
 
 					if(sentPackets < PACKETS_TO_SEND) //there are still packets to be sent
 					{
 						state = w_sending;
 					}
-					else
+					else if(ackedPackets == PACKETS_TO_SEND) // we've received acks on all packets
 					{
 						printf("ACK on the last packet has arrived, ready to close \n");
 						return;
