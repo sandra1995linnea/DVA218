@@ -14,6 +14,7 @@
 #define SYNACK 2
 #define ACK 3
 #define WAIT_SYN 4
+#define WAIT_ACK 6
 #define WAIT_SYNACK 5
 #define FINACK 10
 #define FIN 12

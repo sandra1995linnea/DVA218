@@ -112,8 +112,6 @@ void connectionSetup(int fileDescriptor)
 		//reads the response SYN-ACK and when the connection is established from the server
 		packet = readMessages(fileDescriptor, NULL, NULL);
 
-		printf("Got a packet\n");
-
 		switch (state)
 		{
 		  case WAIT_SYNACK:
@@ -121,12 +119,17 @@ void connectionSetup(int fileDescriptor)
 			//client has received a response from the server, a SYN-ACK
 			if (packet->flags == SYNACK)
 			{
+				state = ESTABLISHED;
 				printf("Got SYNACK, SENDING AN ACK\n");
 				sendACKevent(fileDescriptor);
+
+				printf("Connection established with the server!");
+				removeHead();
+				return;
 			}
 			break;
 		  }
-		  case WAIT_TIMEOUT:
+/*		  case WAIT_TIMEOUT:
 		  {
 			//Server got a timeout and sent a SYN_ACK again, ACK got lost.
 			//client sends ACK again
@@ -136,14 +139,7 @@ void connectionSetup(int fileDescriptor)
 				sendACKevent(fileDescriptor);
 			}
 			break;
-		  }
-		  case ESTABLISHED:
-		  {
-			 printf("Connection established with the server!");
-			 removeHead();
-			 return;
-			 break;
-		  }
+		  }*/
 		  default:
 		  {
 			  printf("Default reached!");

@@ -10,8 +10,7 @@
 #define PORT 5555
 #define MAXMSG 512
 #define WSIZE 2
-#define WAIT_ACK 9
-#define w_receiving 6
+#define w_receiving 65
 
 int state;
 int event;
@@ -118,9 +117,6 @@ void *Slidingwindow(void *data)
  * */
 void sendSynACKevent(int socket)
 {
-	event = INIT;
-	state = WAIT_SYN;
-
 	rtp *setupHeader = createSetupHeader(SYNACK, 2, "Look a SYNACK!");
 
 	printf("Sending package with crc = %d\n", setupHeader->crc);
@@ -130,7 +126,7 @@ void sendSynACKevent(int socket)
 	printf("SYN-ACK sent to the client at timestamp: %ld\n", time(0));
 }
 
-/*Starting up a connection with the client, three way hanshake*/
+/*Starting up a connection with the client, three way handshake*/
 void connectionSetup(int fileDescriptor)
 {
 	//sendSynACKevent(fileDescriptor);
