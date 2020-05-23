@@ -18,13 +18,14 @@
 #define w_waiting 7
 
 
+int  seqNumber;
 rtp *header;
 int state;
 int event;
 struct sockaddr_in serverName;
 fd_set set;
 
-void tear_down (int filedescriptor);
+void tear_down (int filedescriptor, socklen_t size);
 
 /* initSocketAddress
  * Initialises a sockaddr_in struct given a host name and a port.
@@ -46,13 +47,27 @@ void initSocketAddress(struct sockaddr_in *name, char *hostName, unsigned short 
 }
 
 
+
+/*all the clients are listening after a message
+ * that will be sent to every client
+ */
+void* ListenToMessages(void *pointer)
+{
+	int *socket = (int*) pointer;
+
+	while(1)
+	{
+		readMessages(*socket, NULL, NULL);
+	}
+}
+
+
 /* Removes the Syn message from packageList,
  * creates an ACK message and sends it to the server
  * */
 void sendACKevent(int socket)
 {
-	event = INIT;
-	state = WAIT_TIMEOUT;
+	clientState = WAIT_TIMEOUT;
 	removeHead(); //remove SYN from packageList
 
 	rtp* setupHeader = createSetupHeader(ACK, WSIZE, "Here's an ACK!");
@@ -86,50 +101,54 @@ void sendSYNevent(int socket)
 void connectionSetup(int fileDescriptor)
 {
 	rtp* packet;
-	event = INIT;
-	state = WAIT_SYNACK;
+	clientState = WAIT_SYNACK;
 
 	sendSYNevent(fileDescriptor);
 
-	while(1)
-	{
+	while (1) {
 		//reads the response SYN-ACK and when the connection is established from the server
 		packet = readMessages(fileDescriptor, NULL, NULL);
 
-		switch (state)
-		{
-		  case WAIT_SYNACK:
-		  {
-			//client has received a response from the server, a SYN-ACK
-			if (packet->flags == SYNACK)
-			{
-				state = ESTABLISHED;
-				printf("Got SYNACK, SENDING AN ACK\n");
-				sendACKevent(fileDescriptor);
+		switch (clientState) {
+		case WAIT_SYNACK: {
 
-				printf("Connection established with the server!\n\n");
+				//client has received a response from the server, a SYN-ACK
+				if (packet->flags == SYNACK) {
+
+					//printf("Got SYNACK, SENDING AN ACK\n");
+					sendACKevent(fileDescriptor); // need to wait for timeout = connection established
+				} else { //packet is null, SYN lost or dropped by server
+					removeHead();
+					printf("-----------TimeOut-----------\n");
+					sendSYNevent(fileDescriptor);
+				}
+			break;
+		}
+		case WAIT_TIMEOUT: {
+			//Server got a timeout and sent a SYN_ACK again, ACK got lost. SYNACK remove by client wrong Checksum
+			//client sends ACK again
+			if (packet->flags == SYNACK || packet->flags == WRONGCRC) {
+				//printf("OH NO! ACK is lost, I will send it again!\n");
+				sendACKevent(fileDescriptor);
+			}
+			break;
+		}
+		case ESTABLISHED: {
+			//server got ACK, timeout means connection established
+			if (packet == NULL) {
+				printf("-----------TimeOut-----------\n");
+				printf("Connection established with the server!");
 				removeHead();
 				return;
 			}
+		}
 			break;
-		  }
-/*		  case WAIT_TIMEOUT:
-		  {
-			//Server got a timeout and sent a SYN_ACK again, ACK got lost.
-			//client sends ACK again
-			if (event == SYNACK)
-			{
-				printf("OH NO! ACK is lost, I will send it again!\n");
-				sendACKevent(fileDescriptor);
-			}
+		default:
+		{
+			printf("Default reached!");
+			return;
 			break;
-		  }*/
-		  default:
-		  {
-			  printf("Default reached!");
-			  return;
-			  break;
-		  }
+		}
 
 		}
 
@@ -137,10 +156,10 @@ void connectionSetup(int fileDescriptor)
 }
 
 /*Creates a data message and adds it to the packageList*/
-rtp *createDataMessage(int seqNumber)
+rtp *createDataMessage()
 {
-	rtp *header = calloc(1, sizeof(rtp));
-	if(header == NULL)
+	rtp *header = malloc(sizeof(rtp));
+	if(!header)
 	{
 		printf("Data message wasn't created, I couldn't allocate memory!\n");
 		exit(EXIT_FAILURE);
@@ -148,84 +167,106 @@ rtp *createDataMessage(int seqNumber)
 
 	strcpy(header->data, "Hello\n");
 	header->flags = DATA;
-	header->id = 1; //TODO WHAT TO SET HERE?
-	header->seq = seqNumber;
+	header->id = 1;
+	header->seq = seqNumber;//add
 	header->windowsize = WSIZE;
 	header->crc = 0;
-	header->crc = checksum((void*)header, sizeof(*header));
+	header->crc = checksum((void*)&header, sizeof(header));
 	addHeader(header);
 	return header;
 }
 
 
 //function for the sliding window
-void Slidingwindow(int filedescriptor)
+
+
+void *Slidingwindow(void *data)
 {
-	state = w_sending;
-	const int PACKETS_TO_SEND = 10;
-	int sentPackets = 0; //  number of the packet that has been sent
-	int ackedPackets = 0; // number of packets that have been acked
+	int filedescriptor = (int)(*(int*)data);
 
 	struct timeval timer;
 	timer.tv_sec = 5;
 	timer.tv_usec = 0;
 
 	// gives the set zero bits for all filedescriptors
-	//FD_ZERO(&set);
+	FD_ZERO(&set);
 	// sets all bits of sock in set
-	//FD_SET(filedescriptor, &set);
+	FD_SET(filedescriptor, &set);
 
-	rtp *header;
 	socklen_t size = sizeof(struct sockaddr_in);
+	rtp *header;
+	int n0fBytes;
 
-	while(1) // loops as long as there are packets to send
+	header = (rtp*)calloc(1, sizeof(rtp));
+
+	if (header == NULL){
+		printf("calloc failed....\n"); // if calloc returns null, it failed
+		exit(EXIT_FAILURE);
+	}
+	else
 	{
-		switch(state)
+		while(1)
 		{
-			case w_sending:
-				// Send all packages in sliding window
-				//as long as the diff between wsize and ackedpackets are less than the wsize, we will send
-				while(sentPackets - ackedPackets < WSIZE && sentPackets < PACKETS_TO_SEND)
+			switch(state)
+			{
+				case w_sending:
+				writeMessage(filedescriptor, (char*) header, sizeof(rtp), serverName, sizeof(serverName));
+				if(header->windowsize == WSIZE) //window is full
 				{
-					sentPackets++;
-					header = createDataMessage(sentPackets);
-					writeMessage(filedescriptor, (char*) header, sizeof(rtp), serverName, sizeof(serverName));
+					state = w_waiting;
 				}
-				state = w_waiting;
+
+			/*	else if() //no more packets to send
+				{
+					state = w_waiting;
+				}
+
+				else if () //timeout, resend from N
+				{
+					state = w_sending;
+				}*/
+
+				else if(event == ACK)
+				{
+					header->windowsize++;
+					state = w_sending;
+				}
+
 				break;
 
-			case w_waiting:
-				header = readMessages(filedescriptor, (struct sockaddr*) &serverName, &size);
-
-				if(header->flags == ACK)
+				case w_waiting:
+				if(event == ACK) //ACK arrives
 				{
-					//if the ack we receive is further than we last received
-					if(header->seq > ackedPackets)
-						ackedPackets = header->seq; // the sequence number of the ack says how many packets the receiver has received
-
-					printf("Received ack on packet %d\n", ackedPackets);
-
-					if(sentPackets < PACKETS_TO_SEND) //there are still packets to be sent
+/*					if() //there are still packets to be sent
 					{
+						header->windowsize++;
 						state = w_sending;
 					}
-					else if(ackedPackets == PACKETS_TO_SEND) // we've received acks on all packets
+
+					else if() //timeout, resend from N
 					{
-						printf("ACK on the last packet has arrived, ready to close \n");
-						return;
+						//destroy the packets and go back to sending
 					}
+
+					else if() //waiting for more acks
+					{
+						header->windowsize++;
+						state = w_waiting;
+					}
+*/
 				}
+
 				break;
-			default:
-				printf("ERROR REACHED DEFAULT CASE IN SlidingWindow!\n");
-				exit(NULL);
+			}
 		}
 	}
+
+	return NULL; // TODO!
 }
 
 //teardown function
 //handles the cases when the client wants to shut the connection down
-void tear_down(int filedescriptor)
+void tear_down (int filedescriptor, socklen_t size)
 {
 	rtp* packet;
 
@@ -304,6 +345,9 @@ void tear_down(int filedescriptor)
 int main(int argc, char *argv[]) {
 	int sock;
 	char hostName[hostNameLength];
+	char messageString[messageLength];
+	pthread_t thread1;
+	int func1;
 
 	/* Check arguments */
 	if(argv[1] == NULL) {
@@ -327,10 +371,31 @@ int main(int argc, char *argv[]) {
 
 	connectionSetup(sock);
 
-	Slidingwindow(sock);
+	//creating a thread that will handle the messages to every client
+	func1 = pthread_create(&thread1, NULL, ListenToMessages, &sock);
+	if (func1 != 0)
+	{
+		perror("Pthread is not working...");
+		exit(EXIT_SUCCESS);
+	}
 
-	tear_down(sock);
+	printf("\nType something and press [RETURN] to send it to the server.\n");
+	printf("Type 'quit' to nuke this program.\n");
+	fflush(stdin);
 
-	close(sock);
-	exit(EXIT_SUCCESS);
+	while(1) {
+		printf("\n>");
+		fgets(messageString, messageLength, stdin);
+		messageString[messageLength - 1] = '\0';
+
+		// TODO call tear_down somewhere....
+
+		if(strncmp(messageString,"quit\n",messageLength) != 0) {
+		//	writeMessage(sock, messageString, strlen(messageString));
+		}
+		else {
+			close(sock);
+			exit(EXIT_SUCCESS);
+		}
+	}
 }

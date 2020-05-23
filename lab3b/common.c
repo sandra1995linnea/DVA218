@@ -11,6 +11,9 @@
  * Writes the message to the file (socket)
  * denoted by socket.
  */
+ int clientState = 0;
+ int serverState = 0;
+
 
 void writeMessage(int socket, char *message, size_t size, struct sockaddr_in serverAddress, socklen_t length) {
 	int nOfBytes;
@@ -26,7 +29,9 @@ void writeMessage(int socket, char *message, size_t size, struct sockaddr_in ser
 rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 
 	int nOfBytes;
-
+	fd_set set;
+	FD_ZERO(&set);
+	FD_SET(socket, &set);
 	rtp *header = calloc(1, sizeof(rtp));
 	if(header == NULL)
 	{
@@ -34,7 +39,13 @@ rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 		exit(EXIT_FAILURE);
 	}
 
-	while(1) {
+	struct timeval timeout;
+	timeout.tv_sec = 5;
+	timeout.tv_usec = 0;
+
+	int bytesRecv = select(sizeof(int), &set, NULL, NULL, &timeout);
+
+	if(bytesRecv > 0) {
 		nOfBytes = recvfrom(socket, (char*)header, sizeof(rtp), 0, clientName, size);
 		if(nOfBytes < 0) {
 			perror("Could not read data from client\n");
@@ -44,53 +55,68 @@ rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 		{
 			if(nOfBytes > 0) {
 				// check if checksum is correct:
-				int crc = header->crc;
+				uint16_t crc = header->crc;
 				header->crc = 0;
-				int actual = checksum((void*)header, sizeof(*header));
-				//checks if the data is corrupted, will not return if it is
-				if(crc != actual) {
-					printf("Received packet with incorrect CRC! Packet says %d, actual crc is %d\n", crc, actual);
-					printf("Package data = %s, %d, %d\n", header->data, header->seq, header->crc);
 
-					continue; // goes around the loop again
+				//if checksum is wrong delete header, and inform receiver NULL means no packet
+				if(crc != checksum(header, sizeof(rtp))){
+					printf("Received packet with incorrect CRC!\n");
+					header->flags = WRONGCRC;
+					return header;
 				}
 				header->crc = crc;
 
 				// print debug data regarding the packet
-				if(header->flags == ACK){
-					printf(">Incoming ACK \n");
-				}
-				else if(header->flags == SYN){
-					printf("Incoming SYN \n");
-				}
-				else
-					printf(">Incoming packet. \n");
 
-				printf("Package data = %s, %d, %d\n", header->data, header->seq, header->crc);
-				return header;
+				switch (header->flags) {
+				case SYN:
+					printf("Incoming SYN \n");
+					break;
+				case SYNACK:
+					printf("Incoming SYNACK \n");
+					break;
+				case ACK:
+					printf(">Incoming ACK \n");
+					break;
+				case send_FIN:
+					printf("Incoming FIN \n");
+					break;
+				case send_FINACK:
+					printf("Incoming FINACK \n");
+					break;
+				case send_ACK:
+					printf("Incoming ACK \n");
+					break;
+				default:
+					printf("Incoming packet\n");
+					break;
+				}
 			}
 		}
 	}
+	else if(bytesRecv == 0)
+	{
+		clientState = ESTABLISHED;
+
+		return NULL;
+	}
+	else
+	{
+		perror("Could not listen from socket\n");
+		exit(EXIT_FAILURE);
+	}
+
+	printf("Package data = %s, %d, %d\n", header->data, header->seq, header->crc);
+	return header;
 }
 
 /*creates headers use in connectionSetup*/
 rtp * createSetupHeader(int type, int wsize, char* data)
 {
-	return createHeader(type, wsize, data, -1);
-}
-
-rtp * createHeader(int type, int wsize, char* data, int seq)
-{
 	rtp* setupHeader = calloc(1, sizeof(rtp));
-	if(!setupHeader)
-	{
-		printf("setupHeader message wasn't created, I couldn't allocate memory!\n");
-		exit(EXIT_FAILURE);
-	}
-
 	setupHeader->flags = type;
 	setupHeader->id = 0;
-	setupHeader->seq = seq;
+	setupHeader->seq = -1;
 	setupHeader->windowsize = wsize;
 	strcpy(setupHeader->data, data);
 	setupHeader->crc = 0;
@@ -98,6 +124,3 @@ rtp * createHeader(int type, int wsize, char* data, int seq)
 
 	return setupHeader;
 }
-
-
-
