@@ -44,10 +44,13 @@ rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 		{
 			if(nOfBytes > 0) {
 				// check if checksum is correct:
-				uint16_t crc = header->crc;
+				int crc = header->crc;
 				header->crc = 0;
-				if(crc != checksum(header, sizeof(rtp))){
-					printf("Received packet with incorrect CRC!\n");
+				int actual = checksum((void*)header, sizeof(*header));
+				if(crc != actual) {
+					printf("Received packet with incorrect CRC! Packet says %d, actual crc is %d\n", crc, actual);
+					printf("Package data = %s, %d, %d\n", header->data, header->seq, header->crc);
+
 					continue; // goes around the loop again
 				}
 				header->crc = crc;
@@ -73,6 +76,12 @@ rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 rtp * createSetupHeader(int type, int wsize, char* data)
 {
 	rtp* setupHeader = calloc(1, sizeof(rtp));
+	if(!setupHeader)
+	{
+		printf("setupHeader message wasn't created, I couldn't allocate memory!\n");
+		exit(EXIT_FAILURE);
+	}
+
 	setupHeader->flags = type;
 	setupHeader->id = 0;
 	setupHeader->seq = -1;

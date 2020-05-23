@@ -39,9 +39,8 @@ typedef struct
 	int id;
 	int seq;
 	int windowsize;
-	uint16_t crc;  //is the checksum for the whole package or just on the header?
+	uint16_t crc;  // the checksum for the whole package
 	char data[MAXMSG];
-	//char *data;
 } rtp; // realiable transport protocol
 
 /* Linked list of sent packages with their timestamps*/

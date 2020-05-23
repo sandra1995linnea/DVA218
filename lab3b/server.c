@@ -236,7 +236,7 @@ int main(int argc, char *argv[]) {
 	while(1) {
 
 		/* Data arriving on an already connected socket */
-		if(readMessages(sock, NULL, NULL) < 0)
+		if(readMessages(sock, (struct sockaddr*) &clientName, &clientNameLength) < 0)
 		{
 			close(sock);
 			FD_CLR(sock, &activeFdSet);

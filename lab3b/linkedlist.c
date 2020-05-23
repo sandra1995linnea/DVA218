@@ -26,7 +26,7 @@ void addHeader(rtp *pkgHeader) {
 		head->timestamp = time(0);
 		head->next = NULL;
 		tail = (head);
-		printf("Header was added to the linkedList\n");
+		printf("Header was added to the linkedList, crc = %d\n", head->header->crc);
 		return;
 	} else {
 		addLast(pkgHeader);
@@ -44,7 +44,7 @@ void addLast(rtp *pkgHeader) {
 			current->next->timestamp = time(0);
 			current->next->next = NULL;
 			tail = current->next;
-			printf("Header was added last in the linkedList\n");
+			printf("Header was added last in the linkedList, crc = %d\n", tail->header->crc);
 			return;
 		}
 
