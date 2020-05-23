@@ -31,7 +31,7 @@ socklen_t clientNameLength = sizeof(struct sockaddr_in);
 
 bool l_state = true;
 int event = INIT;
-
+void tear_down (int filedescriptor);
 
 int makeSocket(unsigned short int port) {
 	int sock;
@@ -65,6 +65,8 @@ int makeSocket(unsigned short int port) {
 }
 
 /*
+/*
+
 void *Slidingwindow(void *data)
 {
 	int filedescriptor = (int)(*(int*)data);
@@ -109,7 +111,7 @@ void *Slidingwindow(void *data)
 		}
 }/*
 
-
+*/
 
 /* Initializes event and state variables for connectionSetup loop
  * creates an SYN-ACK message and sends it to the client
@@ -174,7 +176,7 @@ void connectionSetup(int fileDescriptor)
 }
 
 //teardown function. Handles the cases when the server wants to end a connection
-void tear_down(int filedescriptor, socklen_t size)
+void tear_down(int filedescriptor)
 {
 	rtp* setupHeader = createSetupHeader(FINACK, WSIZE, "Look a FINACK!");
 	writeMessage(filedescriptor, (char*) &setupHeader, sizeof(rtp), clientName, sizeof(clientName));

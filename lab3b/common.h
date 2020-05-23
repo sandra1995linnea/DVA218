@@ -18,7 +18,11 @@
 #define FINACK 10
 #define FIN 12
 
+#define send_FIN 9
+#define receive_FINACK 10
 #define wait_FINACK 11
+#define send_ACK 12
+#define send_FINACK 13
 #define wait_ACK 14
 #define receive_ACK 15
 
