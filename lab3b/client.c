@@ -57,7 +57,7 @@ void* ListenToMessages(void *pointer)
 
 	while(1)
 	{
-		readMessages(*socket);
+		readMessages(*socket, NULL, NULL);
 	}
 }
 
@@ -71,7 +71,7 @@ void sendACKevent(int socket)
 	state = WAIT_TIMEOUT;
 	removeHead(); //remove SYN from packageList
 
-	rtp* setupHeader = createSetupHeader(ACK, WSIZE);
+	rtp* setupHeader = createSetupHeader(ACK, WSIZE, "Here's an ACK!");
 	addHeader(setupHeader);
 	printf("Sending package with crc = %d\n", setupHeader->crc);
 
@@ -88,7 +88,7 @@ void sendACKevent(int socket)
  * */
 void sendSYNevent(int socket)
 {
-	rtp* setupHeader = createSetupHeader(SYN, WSIZE);
+	rtp* setupHeader = createSetupHeader(SYN, WSIZE, "Hi I want to talk, here's a SYN");
 	addHeader(setupHeader);
 
 	printf("Sending package with crc = %d\n", setupHeader->crc);
@@ -110,7 +110,9 @@ void connectionSetup(int fileDescriptor)
 	while(1)
 	{
 		//reads the response SYN-ACK and when the connection is established from the server
-		packet = readMessages(fileDescriptor);
+		packet = readMessages(fileDescriptor, NULL, NULL);
+
+		printf("Got a packet\n");
 
 		switch (state)
 		{
@@ -267,56 +269,47 @@ void *Slidingwindow(void *data)
 //handles the cases when the client wants to shut the connection down
 void tear_down (int filedescriptor, socklen_t size)
 {
-	int event = INIT;
+	rtp* packet;
 
-	//first we need to send a SYN towards the server side
-	header->windowsize = 1;
-	header->id = 0;
-	header->flags = send_FIN;
-	header->seq = -1;
-	header->crc = 0;
-
-	header->crc = checksum ((void*) &header, sizeof(header));
-	writeMessage(filedescriptor, (char*) header, sizeof(rtp), serverName, sizeof(serverName));
-	createSetupHeader(send_FIN, WSIZE);
-	//send the message that the FIN was send
+	//first we need to send a FIN towards the server side
+	rtp * finPacket = createSetupHeader(FIN, WSIZE, "Shut up, here's a FIN!");
+	writeMessage(filedescriptor, (char*) finPacket, sizeof(rtp), serverName, sizeof(serverName));
+	addHeader(finPacket);
 	printf ("FIN was send to server! time: %ld!\n" , time(0));
 
 	state = wait_FINACK;
 
 	//loop to handle events from approaching packages
-	while (loop == true)
+	while (1)
 	{
 		//receive packages
-		event = readMessages(filedescriptor);
+		packet = readMessages(filedescriptor, NULL, NULL);
 
 		switch(state) //change current state of connection setup according to case
 		{
 			case wait_FINACK:
 			{
-				 if(event == receive_FINACK)
+				 if(packet->flags == FINACK)
 				 {
+					 printf("FINACK received, sending ACK\n");
 					 //FIN and ACK were received
-					 state = WAIT_TIMEOUT;
+					 state = CLOSED;
 
 					 removeHead();
-					 event = INIT;
-					 header->crc = 0;
-					 header->crc = checksum((void*) &header, sizeof(header));
+					// event = INIT;
 
-					 header->flags = send_ACK;
-					 writeMessage(filedescriptor, (char*) header, sizeof(rtp), serverName, sizeof(serverName));
-					 printf("ACK was send to the server. time: %ld\n", time(0));
-					 createSetupHeader(ACK, WSIZE);
-					 //we send the timer again when it is done
+					 sendACKevent(filedescriptor);
+
+					 printf("Connection closed\n");
+					 return;
 				 }
 				 break;
 			}
 
-			//when ACK gets lost and we
+		/*	//when ACK gets lost and we
 			case WAIT_TIMEOUT:
 			{
-				if (event == receive_FINACK)
+				if (packet->flags == receive_FINACK)
 				{
 					//in case ACK is lost and we receive SYN and ACK before the time is out.
 					printf("Wait for timeout. received FIN and ACK\n");
@@ -333,17 +326,16 @@ void tear_down (int filedescriptor, socklen_t size)
 				break;
 			}
 
-			case ESTABLISHED:
+			 case ESTABLISHED:
 			{
 				printf("Client shut down\n");
 				removeHead();
 				return;
 				break;
-			}
+			}*/
 			default:
 			{
-				printf("The teardown is finished\n");
-				return;
+				printf("ERROR REACHED DEFAULT CASE IN tear_down\n");
 				break;
 			}
 		}
@@ -357,9 +349,6 @@ int main(int argc, char *argv[]) {
 	char messageString[messageLength];
 	pthread_t thread1;
 	int func1;
-	socklen_t size;
-
-	size = sizeof(struct sockaddr_in);
 
 	/* Check arguments */
 	if(argv[1] == NULL) {
@@ -399,6 +388,8 @@ int main(int argc, char *argv[]) {
 		printf("\n>");
 		fgets(messageString, messageLength, stdin);
 		messageString[messageLength - 1] = '\0';
+
+		// TODO call tear_down somewhere....
 
 		if(strncmp(messageString,"quit\n",messageLength) != 0) {
 		//	writeMessage(sock, messageString, strlen(messageString));

@@ -28,6 +28,7 @@
 #define WAIT_TIMEOUT 6
 #define ESTABLISHED 7
 #define INIT 0
+#define CLOSED 9
 
 bool loop;
 

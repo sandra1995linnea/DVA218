@@ -16,6 +16,7 @@
 int state;
 int event;
 struct sockaddr_in clientName;
+socklen_t clientNameLength = sizeof(struct sockaddr_in);
 
 /* makeSocket
  * Creates and names a socket in the Internet
@@ -63,16 +64,6 @@ int makeSocket(unsigned short int port) {
 	return(sock);
 }
 
-// sending a message to the client, that we got the message
-void respondToClient(int fileDescriptor, char *message)
-{
-	int nrOfBytes;
-	//nrOfBytes = sendto(fileDescriptor, message, strlen(message) + 1, 0, (struct sockaddr *)&clientName, sizeof(clientName));
-/*	if(nrOfBytes < 0) {
-		perror("writeMessage - Could not write data\n");
-		exit(EXIT_FAILURE);
-	}*/
-}
 /*
 void *Slidingwindow(void *data)
 {
@@ -128,14 +119,13 @@ void sendSynACKevent(int socket)
 	event = INIT;
 	state = WAIT_SYN;
 
-	rtp *setupHeader = createSetupHeader(SYNACK, 2);
+	rtp *setupHeader = createSetupHeader(SYNACK, 2, "Look a SYNACK!");
 
 	printf("Sending package with crc = %d\n", setupHeader->crc);
 
-	//writeMessage(socket,(char*) setupHeader, sizeof(rtp), serverName, sizeof(serverName));
+	writeMessage(socket,(char*) setupHeader, sizeof(rtp), clientName, clientNameLength);
 
 	printf("SYN-ACK sent to the client at timestamp: %ld\n", time(0));
-
 }
 
 /*Starting up a connection with the client, three way hanshake*/
@@ -148,7 +138,7 @@ void connectionSetup(int fileDescriptor)
 	while(1)
 	{
 		//reads the SYN and ACK message from client
-		packet = readMessages(fileDescriptor);
+		packet = readMessages(fileDescriptor, (struct sockaddr*) &clientName, &clientNameLength);
 
 		switch (state)
 		{
@@ -163,7 +153,7 @@ void connectionSetup(int fileDescriptor)
 			}
 			break;
 		  }
-		  case WAIT_ACK: // TODO: Add timeouts!
+		  case WAIT_ACK:
 		  {
 			//Server received an ACK from client
 			if (packet->flags == ACK)
@@ -183,37 +173,23 @@ void connectionSetup(int fileDescriptor)
 	}
 }
 
-//teardown function. Hnadles the cases when the server wants to end a connection
+//teardown function. Handles the cases when the server wants to end a connection
 void tear_down(int filedescriptor, socklen_t size)
 {
-	int event = INIT;
-	rtp header;
+	rtp* setupHeader = createSetupHeader(FINACK, WSIZE, "Look a FINACK!");
+	writeMessage(filedescriptor, (char*) &setupHeader, sizeof(rtp), clientName, sizeof(clientName));
+	addHeader(setupHeader);
 
-	header.windowsize = 1;
-	header.id = 0;
-	header.seq = -1;
-	header.flags = send_FINACK;
-
-	header.crc = 0;
-	header.crc = checksum ((void*) &header, sizeof(header));
-
-	writeMessage(filedescriptor, (char*) &header, sizeof(rtp), clientName, sizeof(clientName));
-	rtp* setupHeader = createSetupHeader(receive_FINACK, WSIZE);
-	printf("FIN and ACK were sent to the server. time: %ld\n", time(0));
+	printf("FINACK was sent to the server. time: %ld\n", time(0));
 
 	//waiting for ACK
 	state = wait_ACK;
 
 	//loop that handles the different cases of teardown
-	while(loop == true)
+	while(1)
 	{
 		//handle incoming packages
-		rtp* receivedPacket = readMessages(filedescriptor);
-		if(receivedPacket == NULL)
-		{
-			//....
-		}
-
+		rtp* receivedPacket = readMessages(filedescriptor, NULL, NULL);
 
 		//we use a switch in order to handle the different possible scenarios of teardown
 		switch(state)
@@ -223,10 +199,9 @@ void tear_down(int filedescriptor, socklen_t size)
 				if(receivedPacket->flags == ACK)
 				{
 					printf("Server shut down\n");
-					state = ESTABLISHED;
+					state = CLOSED;
 					event = INIT;
 
-					state = false;
 					close(filedescriptor);
 					return;
 				}
@@ -235,9 +210,8 @@ void tear_down(int filedescriptor, socklen_t size)
 
 			default:
 			{
-				printf("Teardown is complete \n");
+				printf("ERROR REACHED DEFAULT CASE IN tear_down!\n");
 				return;
-				break;
 			}
 		}
 	}
@@ -264,7 +238,7 @@ int main(int argc, char *argv[]) {
 	while(1) {
 
 		/* Data arriving on an already connected socket */
-		if(readMessages(sock) < 0)
+		if(readMessages(sock, NULL, NULL) < 0)
 		{
 			close(sock);
 			FD_CLR(sock, &activeFdSet);

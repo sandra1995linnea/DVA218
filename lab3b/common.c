@@ -23,10 +23,8 @@ void writeMessage(int socket, char *message, size_t size, struct sockaddr_in ser
 
 
 // Will wait until a packet is received with correct crc
-rtp * readMessages(int socket) {
+rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 
-	socklen_t size;
-	struct sockaddr_in clientName;
 	int nOfBytes;
 
 	rtp *header = calloc(1, sizeof(rtp));
@@ -37,7 +35,7 @@ rtp * readMessages(int socket) {
 	}
 
 	while(1) {
-		nOfBytes = recvfrom(socket, (char*)header, sizeof(rtp), 0, (struct sockaddr *)&clientName, &size);
+		nOfBytes = recvfrom(socket, (char*)header, sizeof(rtp), 0, clientName, size);
 		if(nOfBytes < 0) {
 			perror("Could not read data from client\n");
 			exit(EXIT_FAILURE);
@@ -72,14 +70,14 @@ rtp * readMessages(int socket) {
 }
 
 /*creates headers use in connectionSetup*/
-rtp * createSetupHeader(int type, int wsize)
+rtp * createSetupHeader(int type, int wsize, char* data)
 {
 	rtp* setupHeader = calloc(1, sizeof(rtp));
 	setupHeader->flags = type;
 	setupHeader->id = 0;
 	setupHeader->seq = -1;
 	setupHeader->windowsize = wsize;
-	strcpy(setupHeader->data, "I want to start a Connection");
+	strcpy(setupHeader->data, data);
 	setupHeader->crc = 0;
 	setupHeader->crc = checksum((void*)setupHeader, sizeof(rtp));
 
