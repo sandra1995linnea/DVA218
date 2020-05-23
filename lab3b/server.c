@@ -189,7 +189,7 @@ void connectionSetup(int fileDescriptor)
 void tear_down(int filedescriptor)
 {
 	rtp* setupHeader = createSetupHeader(FINACK, WSIZE, "Look a FINACK!");
-	writeMessage(filedescriptor, (char*) &setupHeader, sizeof(rtp), clientName, sizeof(clientName));
+	writeMessage(filedescriptor, (char*) setupHeader, sizeof(rtp), clientName, sizeof(clientName));
 	//addHeader(setupHeader);
 
 	printf("FINACK was sent to the server. time: %ld\n", time(0));
