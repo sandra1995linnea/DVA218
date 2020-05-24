@@ -31,6 +31,8 @@ bool l_state = true;
 int event = INIT;
 void tear_down (int filedescriptor);
 
+int clientID;
+
 int makeSocket(unsigned short int port) {
 	int sock;
 	struct sockaddr_in name;
@@ -62,12 +64,34 @@ int makeSocket(unsigned short int port) {
 	return(sock);
 }
 
+//reads messages with ID
+rtp * readMessageID(int socket, struct sockaddr* clientName, socklen_t *size)
+{
+	rtp *header;
+	while(1)
+	{
+		header = readMessages(socket, clientName, size);
+
+		// If header is null, there was a timeout so return
+		// otherwise check if the ID is correct
+		if(header == NULL || header->id == clientID)
+		{
+			return header;
+		}
+		else
+		{
+			printf("Received packet with incorrect ID\n");
+			free(header);
+		}
+	}
+}
+
 //Sending an ACK on the approved package
 void sendACKevent(int socket, int seqnr)
 {
 	//removeHead(); //remove SYN from packageList
 
-	rtp* setupHeader = createHeader(ACK, WSIZE, "Here's an ACK!", seqnr);
+	rtp* setupHeader = createHeader(ACK, WSIZE, "Here's an ACK!", seqnr, clientID);
 	//addHeader(setupHeader);
 	printf("Sending package with crc = %d\n", setupHeader->crc);
 
@@ -93,7 +117,7 @@ void Slidingwindow(int filedescriptor)
 			case w_receiving:
 
 				printf("\n----- Listening for packet %d ----\n", packetsReceived+1);
-				header = readMessages(filedescriptor, (struct sockaddr*) &clientName, &size);
+				header = readMessageID(filedescriptor, (struct sockaddr*) &clientName, &size);
 
 				// timeout or incorrect CRC
 				if (header == NULL || header->flags == WRONGCRC)
@@ -139,7 +163,7 @@ void Slidingwindow(int filedescriptor)
  * */
 void sendSynACKevent(int socket)
 {
-	rtp *setupHeader = createSetupHeader(SYNACK, 2, "Look a SYNACK!");
+	rtp *setupHeader = createSetupHeader(SYNACK, 2, "Look a SYNACK!", clientID);
 
 	printf("Sending package with crc = %d\n", setupHeader->crc);
 
@@ -158,13 +182,13 @@ void connectionSetup(int fileDescriptor)
 	while(1)
 	{
 		//reads the SYN and ACK message from client
-		packet = readMessages(fileDescriptor, (struct sockaddr*) &clientName, &clientNameLength);
-
 
 		switch (state)
 		{
 			case WAIT_SYN:
 			{
+				packet = readMessages(fileDescriptor, (struct sockaddr*) &clientName, &clientNameLength);
+
 				if (packet == NULL)
 				{
 					//continue to listen after a packet
@@ -173,6 +197,7 @@ void connectionSetup(int fileDescriptor)
 				//Server has received a response from the client, a SYN message
 				else if (packet->flags == SYN)
 				{
+					clientID = packet->id;
 					state = WAIT_ACK;
 					sendSynACKevent(fileDescriptor);
 					printf("SYN received, sent SYNACK, waiting for ACK\n");
@@ -182,6 +207,8 @@ void connectionSetup(int fileDescriptor)
 		  }
 		  case WAIT_ACK:
 		  {
+			  packet = readMessageID(fileDescriptor, (struct sockaddr*) &clientName, &clientNameLength);
+
 			    if(packet == NULL || packet->flags == WRONGCRC)
 				{
 					//timeout or wrong crc in ack, remove ack and resend synack
@@ -211,7 +238,7 @@ void connectionSetup(int fileDescriptor)
 //teardown function. Handles the cases when the server wants to end a connection
 void tear_down(int filedescriptor)
 {
-	rtp* setupHeader = createSetupHeader(FINACK, WSIZE, "Look a FINACK!");
+	rtp* setupHeader = createSetupHeader(FINACK, WSIZE, "Look a FINACK!", clientID);
 	send_with_random_errors(setupHeader, filedescriptor, clientName);
 	//addHeader(setupHeader);
 
@@ -224,7 +251,7 @@ void tear_down(int filedescriptor)
 	while(1)
 	{
 		//handle incoming packages
-		rtp* receivedPacket = readMessages(filedescriptor, NULL, NULL);
+		rtp* receivedPacket = readMessageID(filedescriptor, NULL, NULL);
 
 		//we use a switch in order to handle the different possible scenarios of teardown
 		switch(state)
@@ -233,7 +260,7 @@ void tear_down(int filedescriptor)
 			{
 				if (receivedPacket == NULL || receivedPacket->flags == WRONGCRC)
 				{
-					setupHeader = createSetupHeader(FINACK, WSIZE, "Look a FINACK!");
+					setupHeader = createSetupHeader(FINACK, WSIZE, "Look a FINACK!", clientID);
 					send_with_random_errors(setupHeader, filedescriptor, clientName);
 					free(setupHeader);
 				}

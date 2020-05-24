@@ -21,7 +21,6 @@ void writeMessage(int socket, char *message, size_t size, struct sockaddr_in ser
 	}
 }
 
-
 // Will wait until a packet is received. Will return with a pointer to a header
 // if a packet is received within the time limit.
 // If the packet had an incorrect CRC, the flags field will be set to WRONGCRC.
@@ -109,12 +108,12 @@ rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 }
 
 /*creates headers use in connectionSetup*/
-rtp * createSetupHeader(int type, int wsize, char* data)
+rtp * createSetupHeader(int type, int wsize, char* data, int id)
 {
-	return createHeader(type, wsize, data, -1);
+	return createHeader(type, wsize, data, -1, id);
 }
 
-rtp * createHeader(int type, int wsize, char* data, int seq)
+rtp * createHeader(int type, int wsize, char* data, int seq, int id)
 {
 	rtp* setupHeader = calloc(1, sizeof(rtp));
 	if(!setupHeader)
@@ -124,7 +123,7 @@ rtp * createHeader(int type, int wsize, char* data, int seq)
 	}
 
 	setupHeader->flags = type;
-	setupHeader->id = 0;
+	setupHeader->id = id;
 	setupHeader->seq = seq;
 	setupHeader->windowsize = wsize;
 	strcpy(setupHeader->data, data);

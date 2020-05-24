@@ -17,10 +17,9 @@
 #define w_waiting 7
 
 
-rtp *header;
-int event;
 struct sockaddr_in serverName;
 fd_set set;
+int clientID;
 
 void tear_down (int filedescriptor);
 
@@ -51,7 +50,7 @@ void sendACKevent(int socket)
 {
 	removeHead(); //remove SYN from packageList
 
-	rtp* setupHeader = createSetupHeader(ACK, WSIZE, "Here's an ACK!");
+	rtp* setupHeader = createSetupHeader(ACK, WSIZE, "Here's an ACK!", clientID);
 	addHeader(setupHeader);
 	printf("Sending ACK with crc = %d\n", setupHeader->crc);
 
@@ -68,7 +67,7 @@ void sendACKevent(int socket)
  * */
 void sendSYNevent(int socket)
 {
-	rtp* setupHeader = createSetupHeader(SYN, WSIZE, "Hi I want to talk, here's a SYN");
+	rtp* setupHeader = createSetupHeader(SYN, WSIZE, "Hi I want to talk, here's a SYN", clientID);
 	addHeader(setupHeader);
 
 	printf("Sending SYN with crc = %d\n", setupHeader->crc);
@@ -82,7 +81,6 @@ void sendSYNevent(int socket)
 void connectionSetup(int fileDescriptor)
 {
 	rtp* packet;
-	event = INIT;
 	int state = WAIT_SYNACK;
 
 	sendSYNevent(fileDescriptor);
@@ -148,7 +146,7 @@ rtp *createDataMessage(int seqNumber)
 
 	strcpy(header->data, "Hello\n");
 	header->flags = DATA;
-	header->id = 1; //TODO WHAT TO SET HERE?
+	header->id = clientID;
 	header->seq = seqNumber;
 	header->windowsize = WSIZE;
 	header->crc = 0;
@@ -165,7 +163,6 @@ void Slidingwindow(int filedescriptor)
 	const int PACKETS_TO_SEND = 10;
 	int sentPackets = 0; //  number of the packet that has been sent
 	int ackedPackets = 0; // number of packets that have been acked
-
 
 	rtp *header;
 	socklen_t size = sizeof(struct sockaddr_in);
@@ -241,7 +238,7 @@ void tear_down(int filedescriptor)
 	rtp* packet;
 
 	//first we need to send a FIN towards the server side
-	rtp * finPacket = createSetupHeader(FIN, WSIZE, "Shut up, here's a FIN!");
+	rtp * finPacket = createSetupHeader(FIN, WSIZE, "Shut up, here's a FIN!", clientID);
 	send_with_random_errors(finPacket, filedescriptor, serverName);
 	free(finPacket);
 	//addHeader(finPacket);
@@ -261,8 +258,8 @@ void tear_down(int filedescriptor)
 			{
 				if (packet == NULL) // timeout
 				{
-					printf("----------TimeOut----------");
-					finPacket = createSetupHeader(FIN, WSIZE, "Shut up, here's a FIN!");
+					printf("----------TimeOut----------\n");
+					finPacket = createSetupHeader(FIN, WSIZE, "Shut up, here's a FIN!", clientID);
 					send_with_random_errors(finPacket, filedescriptor, serverName);
 					free(finPacket);
 				}
@@ -271,9 +268,6 @@ void tear_down(int filedescriptor)
 					 printf("FINACK received, sending ACK\n");
 					 //FIN and ACK were received
 					 state = CLOSED;
-
-					 //removeHead();
-					// event = INIT;
 
 					 sendACKevent(filedescriptor);
 
@@ -301,6 +295,8 @@ int main(int argc, char *argv[]) {
 	// initialize random number generator
 	srand(time(NULL));
 
+	clientID = rand();
+
 	/* Check arguments */
 	if(argv[1] == NULL) {
 		perror("Usage: client [host name]\n");
@@ -317,6 +313,8 @@ int main(int argc, char *argv[]) {
 		perror("Could not create a socket\n");
 		exit(EXIT_FAILURE);
 	}
+
+	printf("Client started with ID = %d\n\n", clientID);
 
 	/* Initialize the socket address */
 	initSocketAddress(&serverName, hostName, PORT);
