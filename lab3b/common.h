@@ -36,6 +36,6 @@ void writeMessage(int socket, char *message, size_t size, struct sockaddr_in ser
 rtp * createSetupHeader(int type, int wsize, char* data);
 rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size);
 rtp * createHeader(int type, int wsize, char* data, int seq);
-void send_with_random_errors(rtp * header, int sock, struct sockaddr_in serverAddress);
+void send_with_random_errors(rtp *header, int sock, struct sockaddr_in serverAddress);
 
 #endif /* COMMON_H_ */

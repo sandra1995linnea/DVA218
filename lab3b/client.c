@@ -53,9 +53,9 @@ void sendACKevent(int socket)
 
 	rtp* setupHeader = createSetupHeader(ACK, WSIZE, "Here's an ACK!");
 	addHeader(setupHeader);
-	printf("Sending package with crc = %d\n", setupHeader->crc);
+	printf("Sending ACK with crc = %d\n", setupHeader->crc);
 
-	writeMessage(socket,(char*) setupHeader, sizeof(rtp), serverName, sizeof(serverName));
+	send_with_random_errors(setupHeader, socket, serverName);
 
 	printf("ACK sent to the server at timestamp: %ld\n", time(0));
 }
@@ -71,9 +71,9 @@ void sendSYNevent(int socket)
 	rtp* setupHeader = createSetupHeader(SYN, WSIZE, "Hi I want to talk, here's a SYN");
 	addHeader(setupHeader);
 
-	printf("Sending package with crc = %d\n", setupHeader->crc);
+	printf("Sending SYN with crc = %d\n", setupHeader->crc);
 
-	writeMessage(socket,(char*) setupHeader, sizeof(rtp), serverName, sizeof(serverName));
+	send_with_random_errors(setupHeader, socket, serverName);
 
 	printf("SYN sent to the server at timestamp: %ld\n", time(0));
 }
@@ -181,7 +181,7 @@ void Slidingwindow(int filedescriptor)
 				{
 					sentPackets++;
 					header = createDataMessage(sentPackets);
-					writeMessage(filedescriptor, (char*) header, sizeof(rtp), serverName, sizeof(serverName));
+					send_with_random_errors(header, filedescriptor, serverName);
 					free(header);
 				}
 				state = w_waiting;
@@ -241,7 +241,7 @@ void tear_down(int filedescriptor)
 
 	//first we need to send a FIN towards the server side
 	rtp * finPacket = createSetupHeader(FIN, WSIZE, "Shut up, here's a FIN!");
-	writeMessage(filedescriptor, (char*) finPacket, sizeof(rtp), serverName, sizeof(serverName));
+	send_with_random_errors(finPacket, filedescriptor, serverName);
 	free(finPacket);
 	//addHeader(finPacket);
 	printf ("FIN was send to server! time: %ld!\n" , time(0));
@@ -262,7 +262,7 @@ void tear_down(int filedescriptor)
 				{
 					printf("----------TimeOut----------");
 					finPacket = createSetupHeader(FIN, WSIZE, "Shut up, here's a FIN!");
-					writeMessage(filedescriptor, (char*) finPacket, sizeof(rtp), serverName, sizeof(serverName));
+					send_with_random_errors(finPacket, filedescriptor, serverName);
 					free(finPacket);
 				}
 				else if(packet->flags == FINACK)

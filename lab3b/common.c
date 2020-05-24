@@ -135,7 +135,7 @@ rtp * createHeader(int type, int wsize, char* data, int seq)
 }
 
 
-void send_with_random_errors(rtp * header, int sock, struct sockaddr_in serverAddress) {
+void send_with_random_errors(rtp *header, int sock, struct sockaddr_in serverAddress) {
 	int rand_num = rand()%5;
 
 	switch(rand_num)

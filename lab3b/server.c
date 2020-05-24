@@ -71,7 +71,7 @@ void sendACKevent(int socket, int seqnr)
 	//addHeader(setupHeader);
 	printf("Sending package with crc = %d\n", setupHeader->crc);
 
-	writeMessage(socket,(char*) setupHeader, sizeof(rtp), clientName, sizeof(clientName));
+	send_with_random_errors(setupHeader, socket, clientName);
 
 	printf("ACK sent to the server at timestamp: %ld\n", time(0));
 }
@@ -140,7 +140,7 @@ void sendSynACKevent(int socket)
 
 	printf("Sending package with crc = %d\n", setupHeader->crc);
 
-	writeMessage(socket,(char*) setupHeader, sizeof(rtp), clientName, clientNameLength);
+	send_with_random_errors(setupHeader, socket, clientName);
 
 	printf("SYN-ACK sent to the client at timestamp: %ld\n", time(0));
 }
@@ -209,7 +209,7 @@ void connectionSetup(int fileDescriptor)
 void tear_down(int filedescriptor)
 {
 	rtp* setupHeader = createSetupHeader(FINACK, WSIZE, "Look a FINACK!");
-	writeMessage(filedescriptor, (char*) setupHeader, sizeof(rtp), clientName, sizeof(clientName));
+	send_with_random_errors(setupHeader, filedescriptor, clientName);
 	//addHeader(setupHeader);
 
 	printf("FINACK was sent to the server. time: %ld\n", time(0));
@@ -231,7 +231,7 @@ void tear_down(int filedescriptor)
 				if (receivedPacket == NULL || receivedPacket->flags == WRONGCRC)
 				{
 					setupHeader = createSetupHeader(FINACK, WSIZE, "Look a FINACK!");
-					writeMessage(filedescriptor, (char*) setupHeader, sizeof(rtp), clientName, sizeof(clientName));
+					send_with_random_errors(setupHeader, filedescriptor, clientName);
 					free(setupHeader);
 				}
 				else if(receivedPacket->flags == ACK)
@@ -273,6 +273,8 @@ int main(int argc, char *argv[]) {
 	printf("\n[waiting for messages...]\n");
 
 	Slidingwindow(sock);
+
+	printf("\n[waiting for connection to close...]\n");
 
 	tear_down(sock);
 }
