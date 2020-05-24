@@ -58,6 +58,7 @@ extern bool loop;
 
 void addLast(rtp *pkgHeader);
 void addHeader(rtp *pkgHeader);
+bool checkorder(int seqNr);
 void removeHead();
 void printAllPackages();
 uint16_t checksum(void *header, size_t headerSize);

@@ -117,6 +117,30 @@ uint16_t checksum(void *header, size_t headerSize)
 	return htons(~sum);
 }
 
+
+bool checkorder(int seqNr)
+{
+	if(seqNr == -1 || seqNr == 0)
+	{
+		return true;
+	}
+	SentPackages *current = head;
+	while(current != NULL)
+	{
+		if(current == NULL)
+		{
+			if(seqNr == current->header->seq + 1)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+
+}
+
+
+
 /*int main(int argc, char *argv[])
  {
  rtp *packageHeader = malloc(sizeof(rtp));
