@@ -31,7 +31,7 @@ bool l_state = true;
 int event = INIT;
 void tear_down (int filedescriptor);
 
-int clientID;
+
 
 int makeSocket(unsigned short int port) {
 	int sock;
@@ -64,27 +64,7 @@ int makeSocket(unsigned short int port) {
 	return(sock);
 }
 
-//reads messages with ID
-rtp * readMessageID(int socket, struct sockaddr* clientName, socklen_t *size)
-{
-	rtp *header;
-	while(1)
-	{
-		header = readMessages(socket, clientName, size);
 
-		// If header is null, there was a timeout so return
-		// otherwise check if the ID is correct
-		if(header == NULL || header->id == clientID)
-		{
-			return header;
-		}
-		else
-		{
-			printf("Received packet with incorrect ID\n");
-			free(header);
-		}
-	}
-}
 
 //Sending an ACK on the approved package
 void sendACKevent(int socket, int seqnr)

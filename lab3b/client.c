@@ -88,7 +88,7 @@ void connectionSetup(int fileDescriptor)
 	while(1)
 	{
 		//reads the response SYN-ACK and when the connection is established from the server
-		packet = readMessages(fileDescriptor, NULL, NULL);
+		packet = readMessageID(fileDescriptor, NULL, NULL);
 
 		switch (state)
 		{
@@ -114,17 +114,6 @@ void connectionSetup(int fileDescriptor)
 			}
 			free(packet);
 			break;
-
-	/*	  case WAIT_TIMEOUT:
-		  {
-			//Server got a timeout and sent a SYN_ACK again, ACK got lost.
-			//client sends ACK again
-			if (packet->flags == SYNACK || packet->flags == WRONGCRC)
-			{
-				printf("OH NO! ACK is lost, I will send it again!\n");
-				sendACKevent(fileDescriptor);
-			}
-			break;*/
 
 		  default:
 			  printf("Default reached!");
@@ -186,7 +175,7 @@ void Slidingwindow(int filedescriptor)
 				break;
 
 			case w_waiting:
-				header = readMessages(filedescriptor, (struct sockaddr*) &serverName, &size);
+				header = readMessageID(filedescriptor, (struct sockaddr*) &serverName, &size);
 
 				if (header == NULL)
 				{
@@ -251,7 +240,7 @@ void tear_down(int filedescriptor)
 	while (1)
 	{
 		//receive packages
-		packet = readMessages(filedescriptor, NULL, NULL);
+		packet = readMessageID(filedescriptor, NULL, NULL);
 
 		switch(state) //change current state of connection setup according to case
 		{

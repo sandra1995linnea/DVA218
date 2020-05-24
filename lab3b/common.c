@@ -21,6 +21,30 @@ void writeMessage(int socket, char *message, size_t size, struct sockaddr_in ser
 	}
 }
 
+
+
+//reads messages with ID
+rtp * readMessageID(int socket, struct sockaddr* clientName, socklen_t *size)
+{
+	rtp *header;
+	while(1)
+	{
+		header = readMessages(socket, clientName, size);
+
+		// If header is null, there was a timeout so return
+		// otherwise check if the ID is correct
+		if(header == NULL || header->id == clientID)
+		{
+			return header;
+		}
+		else
+		{
+			printf("Received packet with incorrect ID\n");
+			free(header);
+		}
+	}
+}
+
 // Will wait until a packet is received. Will return with a pointer to a header
 // if a packet is received within the time limit.
 // If the packet had an incorrect CRC, the flags field will be set to WRONGCRC.
@@ -73,22 +97,21 @@ rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 				switch (header->flags)
 				{
 				case SYN:
-					printf("Incoming SYN \n");
-					break;
+					printf("Incoming SYN at timestamp: %ld\n", time(0));
 				case SYNACK:
-					printf("Incoming SYNACK \n");
+					printf("Incoming SYNACK at timestamp: %ld\n", time(0));
 					break;
 				case ACK:
-					printf("Incoming ACK \n");
+					printf("Incoming ACK timestamp: %ld\n", time(0));
 					break;
 				case FIN:
-					printf("Incoming FIN \n");
+					printf("Incoming FIN timestamp: %ld\n", time(0));
 					break;
 				case FINACK:
-					printf("Incoming FINACK \n");
+					printf("Incoming FINACK timestamp: %ld\n", time(0));
 					break;
 				default:
-					printf("Incoming packet \n");
+					printf("Incoming packet timestamp: %ld\n", time(0));
 					break;
 				}
 			}
