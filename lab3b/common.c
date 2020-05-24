@@ -136,13 +136,17 @@ rtp * createHeader(int type, int wsize, char* data, int seq)
 
 
 void send_with_random_errors(rtp *header, int sock, struct sockaddr_in serverAddress) {
-	int rand_num = rand()%5;
+	int rand_num = rand()%8;
 
 	switch(rand_num)
 	{
+	case 0:
+		//healthy package again
+		writeMessage(sock, (char*)header, sizeof(rtp), serverAddress, sizeof(serverAddress));
+		break;
 	case 1:
 		//corrupt packet
-		printf("------corrupt package sending------");
+		printf("------Sending corrupt package------\n");
 		rtp  *corrupt_header = malloc(sizeof(rtp));
 		strcpy(corrupt_header->data, "i am bad\0");
 
@@ -158,7 +162,7 @@ void send_with_random_errors(rtp *header, int sock, struct sockaddr_in serverAdd
 
 	case 2:
 		//creates a wrong order package with sequence number 2
-		printf("-------Package with wrong seqnr sending-------");
+		printf("-------Sending package with wrong seqnr-------\n");
 		rtp *corrupt_seqnr_header = malloc(sizeof(rtp));
 		strcpy(corrupt_seqnr_header->data, "i am bad\0");
 
@@ -171,6 +175,20 @@ void send_with_random_errors(rtp *header, int sock, struct sockaddr_in serverAdd
 		writeMessage(sock, (char*)corrupt_seqnr_header, sizeof(rtp), serverAddress, sizeof(serverAddress));
 		free(corrupt_seqnr_header);
 		break;
+
+	case 3:
+		//healthy package again
+				writeMessage(sock, (char*)header, sizeof(rtp), serverAddress, sizeof(serverAddress));
+				break;
+
+	case 4:
+		//healthy package again
+				writeMessage(sock, (char*)header, sizeof(rtp), serverAddress, sizeof(serverAddress));
+				break;
+	case 5:
+		//healthy package again
+				writeMessage(sock, (char*)header, sizeof(rtp), serverAddress, sizeof(serverAddress));
+				break;
 
 	default:
 		//healthy package again

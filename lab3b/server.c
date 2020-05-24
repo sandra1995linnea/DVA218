@@ -92,6 +92,7 @@ void Slidingwindow(int filedescriptor)
 		{
 			case w_receiving:
 
+				printf("\n----- Listening for packet %d ----\n", packetsReceived+1);
 				header = readMessages(filedescriptor, (struct sockaddr*) &clientName, &size);
 
 				// timeout or incorrect CRC
@@ -104,7 +105,6 @@ void Slidingwindow(int filedescriptor)
 				if(header->seq == packetsReceived+1 && header->flags == DATA)//approved data
 				{
 					packetsReceived++;
-
 					sendACKevent(filedescriptor, packetsReceived);//sending an ack on the package
 				}
 				else if(header->flags == FIN) // if we received a FIN, the client does not want to stay connected
@@ -114,7 +114,10 @@ void Slidingwindow(int filedescriptor)
 					return;
 				}
 				else
+				{
 					printf("Received and threw away packet that was either out of order or not a data packet\n");
+					sendACKevent(filedescriptor, packetsReceived);
+				}
 
 				// free allocated memory
 				free(header);

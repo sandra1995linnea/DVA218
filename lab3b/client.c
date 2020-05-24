@@ -180,6 +180,7 @@ void Slidingwindow(int filedescriptor)
 				while(sentPackets - ackedPackets < WSIZE && sentPackets < PACKETS_TO_SEND)
 				{
 					sentPackets++;
+					printf("Sending packet sequence no %d\n", sentPackets);
 					header = createDataMessage(sentPackets);
 					send_with_random_errors(header, filedescriptor, serverName);
 					free(header);
@@ -192,7 +193,7 @@ void Slidingwindow(int filedescriptor)
 
 				if (header == NULL)
 				{
-					printf("----------TimeOut----------");
+					printf("----------TimeOut----------\n");
 					// resending packets:
 					sentPackets = ackedPackets;
 					state = w_sending;
