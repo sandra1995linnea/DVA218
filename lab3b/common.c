@@ -69,7 +69,7 @@ rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 				header->crc = crc;
 
 				// print debug data regarding the packet
-
+				printf("\n");
 				switch (header->flags)
 				{
 				case SYN:
@@ -103,7 +103,7 @@ rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 		 perror("Could not read from socket\n");
 	 }
 
-	 printf("Package data = %s, sequencenr: %d, crc: %d\n", header->data, header->seq, header->crc);
+	 printf("Package data = %s, sequencenr: %d, crc: %d ID = %d\n", header->data, header->seq, header->crc, header->id);
 	 return header;
 }
 
@@ -135,7 +135,7 @@ rtp * createHeader(int type, int wsize, char* data, int seq, int id)
 
 
 void send_with_random_errors(rtp *header, int sock, struct sockaddr_in serverAddress) {
-	int rand_num = rand() % 8;
+	int rand_num = rand() % 10;
 
 	switch(rand_num)
 	{

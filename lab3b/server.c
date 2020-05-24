@@ -213,7 +213,7 @@ void connectionSetup(int fileDescriptor)
 				{
 					//timeout or wrong crc in ack, remove ack and resend synack
 					sendSynACKevent(fileDescriptor);
-					printf("Sending Synack again, waitig for ACK");
+					printf("Sending Synack again, waitig for ACK\n");
 				}
 				//Server received an ACK from client
 				else if (packet->flags == ACK)

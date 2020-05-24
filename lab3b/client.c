@@ -236,6 +236,7 @@ void Slidingwindow(int filedescriptor)
 void tear_down(int filedescriptor)
 {
 	rtp* packet;
+	int timeouts = 0;
 
 	//first we need to send a FIN towards the server side
 	rtp * finPacket = createSetupHeader(FIN, WSIZE, "Shut up, here's a FIN!", clientID);
@@ -262,6 +263,14 @@ void tear_down(int filedescriptor)
 					finPacket = createSetupHeader(FIN, WSIZE, "Shut up, here's a FIN!", clientID);
 					send_with_random_errors(finPacket, filedescriptor, serverName);
 					free(finPacket);
+
+					timeouts++;
+					if (timeouts > 2)
+					{
+						printf("Connection tear down timed out, connection closed\n");
+						 free(packet);
+						 return;
+					}
 				}
 				else if(packet->flags == FINACK)
 				 {
