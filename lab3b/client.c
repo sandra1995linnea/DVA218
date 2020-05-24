@@ -273,6 +273,7 @@ void tear_down (int filedescriptor, socklen_t size)
 	//first we need to send a FIN towards the server side
 	rtp * finPacket = createSetupHeader(FIN, WSIZE, "Shut up, here's a FIN!");
 	writeMessage(filedescriptor, (char*) finPacket, sizeof(rtp), serverName, sizeof(serverName));
+
 	addHeader(finPacket);
 	printf ("FIN was send to server! time: %ld!\n" , time(0));
 
@@ -343,7 +344,7 @@ void tear_down (int filedescriptor, socklen_t size)
 
 //FUnction that checks for random errors (error check mechanism)
 //creates a random number which corresponds to an error (checks for lost or corrupt packages or packages that are not in order)
-void check_for_errors (rtp ** header, int sock, socklen_t size)
+void check_for_errors (rtp ** header, int socket, socklen_t size)
 {
 	int rand_num = rand()%3;
 
@@ -351,7 +352,7 @@ void check_for_errors (rtp ** header, int sock, socklen_t size)
 	{
 	case 1:
 		//healthy package
-		writeMessage(sock, **header, size);
+		writeMessage(socket,(char*)header, sizeof(rtp), serverName, sizeof(serverName));
 		break;
 
 	case 2:
@@ -366,12 +367,14 @@ void check_for_errors (rtp ** header, int sock, socklen_t size)
 		corrupt_header->seq = (*header)->seq;
 		corrupt_header->crc = 1555;
 
-		writeMessage (sock, *corrupt_header, size);
+		writeMessage (socket, (char*)corrupt_header, sizeof(rtp), serverName, sizeof(serverName));
+		//filedescriptor, (char*) &setupHeader, sizeof(rtp), clientName, sizeof(clientName)
+		//socket,(char*) setupHeader, sizeof(rtp), serverName, sizeof(serverName)
 		break;
 
 	case 3:
 		//healthy package again
-		writeMessage (sock, **header, size);
+		writeMessage (socket, (char*)header, sizeof(rtp), serverName, sizeof(serverName));
 		break;
 
 	case 4:
@@ -386,12 +389,12 @@ void check_for_errors (rtp ** header, int sock, socklen_t size)
 		corrupt_seqnr_header->seq=2;
 		corrupt_seqnr_header->crc = checksum((void*) corrupt_seqnr_header, sizeof( *corrupt_seqnr_header ));
 
-		writeMessage (sock, corrupt_seqnr_header, size);
+		writeMessage (socket, (char*)corrupt_seqnr_header, sizeof(rtp), serverName, sizeof(serverName));
 		break;
 
 	case 5:
 		//healthy package again
-		writeMessage (sock, **header, size);
+		writeMessage (socket, (char*)header, sizeof(rtp), serverName, sizeof(serverName));
 		break;
 	}
 }
