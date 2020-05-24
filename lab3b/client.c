@@ -370,6 +370,11 @@ void check_for_errors (rtp ** header, int sock, socklen_t size)
 		break;
 
 	case 3:
+		//healthy package again
+		writeMessage (sock, **header, size);
+		break;
+
+	case 4:
 		//creates a wrong order package with sequence number 2.
 		printf("--Wrong seq number incoming--\n");
 		rtp * corrupt_seqnr_header = (rtp*) malloc (sizeof(rtp));
@@ -382,11 +387,6 @@ void check_for_errors (rtp ** header, int sock, socklen_t size)
 		corrupt_seqnr_header->crc = checksum((void*) corrupt_seqnr_header, sizeof( *corrupt_seqnr_header ));
 
 		writeMessage (sock, corrupt_seqnr_header, size);
-		break;
-
-	case 4:
-		//healthy package again
-		writeMessage (sock, **header, size);
 		break;
 
 	case 5:
