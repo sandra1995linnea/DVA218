@@ -261,6 +261,9 @@ int main(int argc, char *argv[]) {
 	int sock;
 	fd_set set; /* Used by select */
 
+	// initialize random number generator
+	srand(time(NULL));
+
 	/* Create a socket and set it up to accept connections */
 	sock = makeSocket(PORT);
 

@@ -298,6 +298,9 @@ int main(int argc, char *argv[]) {
 	int sock;
 	char hostName[hostNameLength];
 
+	// initialize random number generator
+	srand(time(NULL));
+
 	/* Check arguments */
 	if(argv[1] == NULL) {
 		perror("Usage: client [host name]\n");
