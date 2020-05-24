@@ -341,6 +341,61 @@ void tear_down (int filedescriptor, socklen_t size)
 	}
 }
 
+//FUnction that checks for random errors (error check mechanism)
+//creates a random number which corresponds to an error (checks for lost or corrupt packages or packages that are not in order)
+void check_for_errors (rtp ** header, int sock, socklen_t size)
+{
+	int rand_num = rand()%3;
+
+	switch(rand_num)
+	{
+	case 1:
+		//healthy package
+		writeMessage(sock, **header, size);
+		break;
+
+	case 2:
+		//corrupt package
+		printf("--Corrupt package incoming--\n");
+		rtp *corrupt_header = (rtp*) malloc (sizeof (rtp));
+		strcpy (corrupt_header ->data, "i am bad\0");
+
+		corrupt_header->windowsize = WSIZE;
+		corrupt_header->id =1;
+		corrupt_header->flags = DATA;
+		corrupt_header->seq = (*header)->seq;
+		corrupt_header->crc = 1555;
+
+		writeMessage (sock, *corrupt_header, size);
+		break;
+
+	case 3:
+		//creates a wrong order package with sequence number 2.
+		printf("--Wrong seq number incoming--\n");
+		rtp * corrupt_seqnr_header = (rtp*) malloc (sizeof(rtp));
+		strcpy (corrupt_seqnr_header->data, "i am bad\0");
+
+		corrupt_seqnr_header->windowsize = WSIZE;
+		corrupt_seqnr_header->id = 1;
+		corrupt_seqnr_header->flags = DATA;
+		corrupt_seqnr_header->seq=2;
+		corrupt_seqnr_header->crc = checksum((void*) corrupt_seqnr_header, sizeof( *corrupt_seqnr_header ));
+
+		writeMessage (sock, corrupt_seqnr_header, size);
+		break;
+
+	case 4:
+		//healthy package again
+		writeMessage (sock, **header, size);
+		break;
+
+	case 5:
+		//healthy package again
+		writeMessage (sock, **header, size);
+		break;
+	}
+}
+
 
 int main(int argc, char *argv[]) {
 	int sock;
