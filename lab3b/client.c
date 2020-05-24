@@ -368,8 +368,6 @@ void check_for_errors (rtp ** header, int socket, socklen_t size)
 		corrupt_header->crc = 1555;
 
 		writeMessage (socket, (char*)corrupt_header, sizeof(rtp), serverName, sizeof(serverName));
-		//filedescriptor, (char*) &setupHeader, sizeof(rtp), clientName, sizeof(clientName)
-		//socket,(char*) setupHeader, sizeof(rtp), serverName, sizeof(serverName)
 		break;
 
 	case 3:
