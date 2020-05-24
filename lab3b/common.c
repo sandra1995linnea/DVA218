@@ -22,10 +22,16 @@ void writeMessage(int socket, char *message, size_t size, struct sockaddr_in ser
 }
 
 
-// Will wait until a packet is received with correct crc
+// Will wait until a packet is received. Will return with a pointer to a header
+// if a packet is received within the time limit.
+// If the packet had an incorrect CRC, the flags field will be set to WRONGCRC.
+// If a timeout happens NULL will be returned.
 rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 
 	int nOfBytes;
+	fd_set set;
+	FD_ZERO(&set);
+	FD_SET(socket, &set);
 
 	rtp *header = calloc(1, sizeof(rtp));
 	if(header == NULL)
@@ -34,7 +40,13 @@ rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 		exit(EXIT_FAILURE);
 	}
 
-	while(1) {
+	 struct timeval timeout;
+	 timeout.tv_sec = 5;
+	 timeout.tv_usec = 0;
+
+	 int returnValue = select(sizeof(int), &set, NULL, NULL, &timeout);
+
+	 if(returnValue > 0){
 		nOfBytes = recvfrom(socket, (char*)header, sizeof(rtp), 0, clientName, size);
 		if(nOfBytes < 0) {
 			perror("Could not read data from client\n");
@@ -44,33 +56,56 @@ rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 		{
 			if(nOfBytes > 0) {
 				// check if checksum is correct:
-				int crc = header->crc;
+				uint16_t crc = header->crc;
 				header->crc = 0;
-				int actual = checksum((void*)header, sizeof(*header));
+				uint16_t actual = checksum((void*)header, sizeof(*header));
 				//checks if the data is corrupted, will not return if it is
 				if(crc != actual) {
 					printf("Received packet with incorrect CRC! Packet says %d, actual crc is %d\n", crc, actual);
 					printf("Package data = %s, %d, %d\n", header->data, header->seq, header->crc);
+					header->flags = WRONGCRC;
 
-					continue; // goes around the loop again
+					return header;
 				}
 				header->crc = crc;
 
 				// print debug data regarding the packet
-				if(header->flags == ACK){
-					printf(">Incoming ACK \n");
-				}
-				else if(header->flags == SYN){
-					printf("Incoming SYN \n");
-				}
-				else
-					printf(">Incoming packet. \n");
 
-				printf("Package data = %s, %d, %d\n", header->data, header->seq, header->crc);
-				return header;
+				switch (header->flags)
+				{
+				case SYN:
+					printf("Incoming SYN \n");
+					break;
+				case SYNACK:
+					printf("Incoming SYNACK \n");
+					break;
+				case ACK:
+					printf("Incoming ACK \n");
+					break;
+				case FIN:
+					printf("Incoming FIN \n");
+					break;
+				case FINACK:
+					printf("Incoming FINACK \n");
+					break;
+				default:
+					printf("Incoming packet \n");
+					break;
+				}
 			}
 		}
-	}
+	 }
+	 else if(returnValue == 0) // timeout
+	 {
+		 return NULL;
+	 }
+	 else
+	 {
+		 perror("Could not read from socket\n");
+	 }
+
+	 printf("Package data = %s, sequencenr: %d, crc: %d", header->data, header->seq, header->crc);
+	 return header;
 }
 
 /*creates headers use in connectionSetup*/

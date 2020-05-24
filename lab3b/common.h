@@ -26,6 +26,7 @@
 #define send_FINACK 13
 #define wait_ACK 14
 #define receive_ACK 15
+#define WRONGCRC 16
 
 extern rtp *setupHeader;
 

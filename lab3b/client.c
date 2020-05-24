@@ -19,7 +19,6 @@
 
 
 rtp *header;
-int state;
 int event;
 struct sockaddr_in serverName;
 fd_set set;
@@ -51,8 +50,6 @@ void initSocketAddress(struct sockaddr_in *name, char *hostName, unsigned short 
  * */
 void sendACKevent(int socket)
 {
-	event = INIT;
-	state = WAIT_TIMEOUT;
 	removeHead(); //remove SYN from packageList
 
 	rtp* setupHeader = createSetupHeader(ACK, WSIZE, "Here's an ACK!");
@@ -87,7 +84,7 @@ void connectionSetup(int fileDescriptor)
 {
 	rtp* packet;
 	event = INIT;
-	state = WAIT_SYNACK;
+	int state = WAIT_SYNACK;
 
 	sendSYNevent(fileDescriptor);
 
@@ -99,40 +96,90 @@ void connectionSetup(int fileDescriptor)
 		switch (state)
 		{
 		  case WAIT_SYNACK:
-		  {
+
 			//client has received a response from the server, a SYN-ACK
-			if (packet->flags == SYNACK)
+			if (packet == NULL) // timeout
+			{
+				printf("----------TimeOut----------");
+				sendSYNevent(fileDescriptor); //resend
+			}
+			else if (packet->flags == SYNACK)
 			{
 				state = ESTABLISHED;
 				printf("Got SYNACK, SENDING AN ACK\n");
 				sendACKevent(fileDescriptor);
 
 				printf("Connection established with the server!\n\n");
-				removeHead();
+
+				free(packet);
+
 				return;
 			}
+			free(packet);
 			break;
-		  }
-/*		  case WAIT_TIMEOUT:
+
+	/*	  case WAIT_TIMEOUT:
 		  {
 			//Server got a timeout and sent a SYN_ACK again, ACK got lost.
 			//client sends ACK again
-			if (event == SYNACK)
+			if (packet->flags == SYNACK || packet->flags == WRONGCRC)
 			{
 				printf("OH NO! ACK is lost, I will send it again!\n");
 				sendACKevent(fileDescriptor);
 			}
-			break;
-		  }*/
+			break;*/
+
 		  default:
-		  {
 			  printf("Default reached!");
 			  return;
 			  break;
-		  }
-
 		}
+	}
+}
 
+
+void send_with_random_errors(rtp * header, int sock)
+{
+	int rand_num = rand()%5;
+
+	switch(rand_num)
+	{
+	case 1:
+		//corrupt packet
+		printf("------corrupt package sending------");
+		rtp  *corrupt_header = malloc(sizeof(rtp));
+		strcpy(corrupt_header->data, "i am bad\0");
+
+		corrupt_header->windowsize = WSIZE;
+		corrupt_header->id = 1;
+		corrupt_header->flags = DATA;
+		corrupt_header->seq = header->seq;
+		corrupt_header->crc = 1555;
+
+		writeMessage(sock, (char*) corrupt_header, sizeof(rtp), serverName, sizeof(serverName));
+		free(corrupt_header);
+		break;
+
+	case 2:
+		//creates a wrong order package with sequence number 2
+		printf("-------Package with wrong seqnr sending-------");
+		rtp *corrupt_seqnr_header = malloc(sizeof(rtp));
+		strcpy(corrupt_seqnr_header, "i am bad\0");
+
+		corrupt_seqnr_header->windowsize = WSIZE;
+		corrupt_seqnr_header->id = 1;
+		corrupt_seqnr_header->flags = DATA;
+		corrupt_seqnr_header->seq = 2;
+		corrupt_seqnr_header->crc = checksum((void*) corrupt_seqnr_header, sizeof(*corrupt_seqnr_header));
+
+		writeMessage(sock, (char*)corrupt_seqnr_header, sizeof(rtp), serverName, sizeof(serverName));
+		free(corrupt_seqnr_header);
+		break;
+
+	default:
+		//healthy package again
+		writeMessage(sock, (char*)header, sizeof(rtp), serverName, sizeof(serverName));
+		break;
 	}
 }
 
@@ -161,19 +208,11 @@ rtp *createDataMessage(int seqNumber)
 //function for the sliding window
 void Slidingwindow(int filedescriptor)
 {
-	state = w_sending;
+	int state = w_sending;
 	const int PACKETS_TO_SEND = 10;
 	int sentPackets = 0; //  number of the packet that has been sent
 	int ackedPackets = 0; // number of packets that have been acked
 
-	struct timeval timer;
-	timer.tv_sec = 5;
-	timer.tv_usec = 0;
-
-	// gives the set zero bits for all filedescriptors
-	//FD_ZERO(&set);
-	// sets all bits of sock in set
-	//FD_SET(filedescriptor, &set);
 
 	rtp *header;
 	socklen_t size = sizeof(struct sockaddr_in);
@@ -190,6 +229,7 @@ void Slidingwindow(int filedescriptor)
 					sentPackets++;
 					header = createDataMessage(sentPackets);
 					writeMessage(filedescriptor, (char*) header, sizeof(rtp), serverName, sizeof(serverName));
+					free(header);
 				}
 				state = w_waiting;
 				break;
@@ -197,13 +237,28 @@ void Slidingwindow(int filedescriptor)
 			case w_waiting:
 				header = readMessages(filedescriptor, (struct sockaddr*) &serverName, &size);
 
-				if(header->flags == ACK)
+				if (header == NULL)
+				{
+					printf("----------TimeOut----------");
+					// resending packets:
+					sentPackets = ackedPackets;
+					state = w_sending;
+				}
+				else if (header->flags == SYNACK)
+				{
+					printf("Resent ACK since a new SYNACK was received");
+					// If our last ack from the connection setup phase disappeared, the server will send a new SYNAC
+					// and we'll have to send and ACK back
+					sendACKevent(filedescriptor);
+				}
+				else if(header->flags == ACK)
 				{
 					//if the ack we receive is further than we last received
 					if(header->seq > ackedPackets)
+					{
 						ackedPackets = header->seq; // the sequence number of the ack says how many packets the receiver has received
-
-					printf("Received ack on packet %d\n", ackedPackets);
+						printf("Received ack on packet %d\n", ackedPackets);
+					}
 
 					if(sentPackets < PACKETS_TO_SEND) //there are still packets to be sent
 					{
@@ -212,9 +267,11 @@ void Slidingwindow(int filedescriptor)
 					else if(ackedPackets == PACKETS_TO_SEND) // we've received acks on all packets
 					{
 						printf("ACK on the last packet has arrived, ready to close \n");
+						free(header);
 						return;
 					}
 				}
+				free(header);
 				break;
 			default:
 				printf("ERROR REACHED DEFAULT CASE IN SlidingWindow!\n");
@@ -232,10 +289,11 @@ void tear_down(int filedescriptor)
 	//first we need to send a FIN towards the server side
 	rtp * finPacket = createSetupHeader(FIN, WSIZE, "Shut up, here's a FIN!");
 	writeMessage(filedescriptor, (char*) finPacket, sizeof(rtp), serverName, sizeof(serverName));
-	addHeader(finPacket);
+	free(finPacket);
+	//addHeader(finPacket);
 	printf ("FIN was send to server! time: %ld!\n" , time(0));
 
-	state = wait_FINACK;
+	int state = wait_FINACK;
 
 	//loop to handle events from approaching packages
 	while (1)
@@ -247,50 +305,31 @@ void tear_down(int filedescriptor)
 		{
 			case wait_FINACK:
 			{
-				 if(packet->flags == FINACK)
+				if (packet == NULL) // timeout
+				{
+					printf("----------TimeOut----------");
+					finPacket = createSetupHeader(FIN, WSIZE, "Shut up, here's a FIN!");
+					writeMessage(filedescriptor, (char*) finPacket, sizeof(rtp), serverName, sizeof(serverName));
+					free(finPacket);
+				}
+				else if(packet->flags == FINACK)
 				 {
 					 printf("FINACK received, sending ACK\n");
 					 //FIN and ACK were received
 					 state = CLOSED;
 
-					 removeHead();
+					 //removeHead();
 					// event = INIT;
 
 					 sendACKevent(filedescriptor);
 
 					 printf("Connection closed\n");
+					 free(packet);
 					 return;
 				 }
+				free(packet);
 				 break;
 			}
-
-		/*	//when ACK gets lost and we
-			case WAIT_TIMEOUT:
-			{
-				if (packet->flags == receive_FINACK)
-				{
-					//in case ACK is lost and we receive SYN and ACK before the time is out.
-					printf("Wait for timeout. received FIN and ACK\n");
-					removeHead();
-
-					header->crc=0;
-					header->crc = checksum ((void*) &header, sizeof(header));
-					header->flags = send_ACK;
-
-					writeMessage(filedescriptor, (char*) header, sizeof(rtp), serverName, sizeof(serverName));
-					printf("ACK was send again to server. time: %ld\n", time(0));
-					createSetupHeader(ACK, WSIZE);
-				}
-				break;
-			}
-
-			 case ESTABLISHED:
-			{
-				printf("Client shut down\n");
-				removeHead();
-				return;
-				break;
-			}*/
 			default:
 			{
 				printf("ERROR REACHED DEFAULT CASE IN tear_down\n");

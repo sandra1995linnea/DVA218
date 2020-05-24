@@ -152,6 +152,11 @@ void connectionSetup(int fileDescriptor)
 		//reads the SYN and ACK message from client
 		packet = readMessages(fileDescriptor, (struct sockaddr*) &clientName, &clientNameLength);
 
+		if (packet == NULL)
+		{
+			//ontinue to listen after a pcket
+			continue;
+		}
 		switch (state)
 		{
 		  case WAIT_SYN:
@@ -172,6 +177,12 @@ void connectionSetup(int fileDescriptor)
 			{
 				printf("Ack received, server is connected\n");
 				return;
+			}
+			if(packet->flags == NULL || packet->flags == WRONGCRC)
+			{
+				//timeout or wrong crc in ack, remove ack and resend synack
+				sendSynACKevent(fileDescriptor);
+				printf("Sending Synack again, waitig for ACK");
 			}
 			break;
 		  }
@@ -231,7 +242,7 @@ void tear_down(int filedescriptor)
 
 int main(int argc, char *argv[]) {
 	int sock;
-	fd_set activeFdSet, set; /* Used by select */
+	fd_set set; /* Used by select */
 
 	/* Create a socket and set it up to accept connections */
 	sock = makeSocket(PORT);
