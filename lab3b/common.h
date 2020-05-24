@@ -28,11 +28,14 @@
 #define receive_ACK 15
 #define WRONGCRC 16
 
+#define WSIZE 2
+
 extern rtp *setupHeader;
 
 void writeMessage(int socket, char *message, size_t size, struct sockaddr_in serverAddress, socklen_t length);
 rtp * createSetupHeader(int type, int wsize, char* data);
 rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size);
 rtp * createHeader(int type, int wsize, char* data, int seq);
+void send_with_random_errors(rtp * header, int sock, struct sockaddr_in serverAddress);
 
 #endif /* COMMON_H_ */

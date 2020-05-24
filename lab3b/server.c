@@ -83,7 +83,7 @@ void Slidingwindow(int filedescriptor)
 
 	socklen_t size = sizeof(struct sockaddr_in);
 	rtp *header;
-	int seqnr = 0; //keeps track if the packets are coming in the right order or not
+	int packetsReceived = 0; //keeps track if the packets are coming in the right order or not
 
    //mottagaren står bara i ett tillstånd, håll koll på seqnr
 	while(1)
@@ -93,19 +93,24 @@ void Slidingwindow(int filedescriptor)
 			case w_receiving:
 
 				header = readMessages(filedescriptor, (struct sockaddr*) &clientName, &size);
-				seqnr++;
 
-				//packet data error check
-				if(header->seq == seqnr && header->flags == DATA)//approved data
+				// timeout or incorrect CRC
+				if (header == NULL || header->flags == WRONGCRC)
 				{
-					// print data:
-				//	printf("Data received: %s, crc: %d, seq: %d", header->data, header->crc, header->seq);
+					continue;
+				}
 
-					sendACKevent(filedescriptor, seqnr);//sending an ack on the package
+				//packet data check
+				if(header->seq == packetsReceived+1 && header->flags == DATA)//approved data
+				{
+					packetsReceived++;
+
+					sendACKevent(filedescriptor, packetsReceived);//sending an ack on the package
 				}
 				else if(header->flags == FIN) // if we received a FIN, the client does not want to stay connected
 				{
-					printf("No more packets to be sent, client is done sending\n");
+					printf("FIN RECEIVED. Client is done sending\n");
+					free(header);
 					return;
 				}
 				else
@@ -152,39 +157,43 @@ void connectionSetup(int fileDescriptor)
 		//reads the SYN and ACK message from client
 		packet = readMessages(fileDescriptor, (struct sockaddr*) &clientName, &clientNameLength);
 
-		if (packet == NULL)
-		{
-			//ontinue to listen after a pcket
-			continue;
-		}
+
 		switch (state)
 		{
-		  case WAIT_SYN:
-		  {
-			//Server has received a response from the client, a SYN message
-			if (packet->flags == SYN)
+			case WAIT_SYN:
 			{
-				state = WAIT_ACK;
-				sendSynACKevent(fileDescriptor);
-				printf("SYN received, sent SYNACK, waiting for ACK\n");
-			}
-			break;
+				if (packet == NULL)
+				{
+					//continue to listen after a packet
+					continue;
+				}
+				//Server has received a response from the client, a SYN message
+				else if (packet->flags == SYN)
+				{
+					state = WAIT_ACK;
+					sendSynACKevent(fileDescriptor);
+					printf("SYN received, sent SYNACK, waiting for ACK\n");
+				}
+				free(packet);
+				break;
 		  }
 		  case WAIT_ACK:
 		  {
-			//Server received an ACK from client
-			if (packet->flags == ACK)
-			{
-				printf("Ack received, server is connected\n");
-				return;
-			}
-			if(packet->flags == NULL || packet->flags == WRONGCRC)
-			{
-				//timeout or wrong crc in ack, remove ack and resend synack
-				sendSynACKevent(fileDescriptor);
-				printf("Sending Synack again, waitig for ACK");
-			}
-			break;
+			    if(packet == NULL || packet->flags == WRONGCRC)
+				{
+					//timeout or wrong crc in ack, remove ack and resend synack
+					sendSynACKevent(fileDescriptor);
+					printf("Sending Synack again, waitig for ACK");
+				}
+				//Server received an ACK from client
+				else if (packet->flags == ACK)
+				{
+					printf("Ack received, server is connected\n");
+					free(packet);
+					return;
+				}
+			    free(packet);
+				break;
 		  }
 		  default:
 		  {
@@ -219,11 +228,16 @@ void tear_down(int filedescriptor)
 		{
 			case wait_ACK:
 			{
-				if(receivedPacket->flags == ACK)
+				if (receivedPacket == NULL || receivedPacket->flags == WRONGCRC)
+				{
+					setupHeader = createSetupHeader(FINACK, WSIZE, "Look a FINACK!");
+					writeMessage(filedescriptor, (char*) setupHeader, sizeof(rtp), clientName, sizeof(clientName));
+					free(setupHeader);
+				}
+				else if(receivedPacket->flags == ACK)
 				{
 					printf("Server shut down\n");
 					state = CLOSED;
-					event = INIT;
 
 					close(filedescriptor);
 					return;

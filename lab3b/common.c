@@ -104,7 +104,7 @@ rtp * readMessages(int socket, struct sockaddr* clientName, socklen_t *size) {
 		 perror("Could not read from socket\n");
 	 }
 
-	 printf("Package data = %s, sequencenr: %d, crc: %d", header->data, header->seq, header->crc);
+	 printf("Package data = %s, sequencenr: %d, crc: %d\n", header->data, header->seq, header->crc);
 	 return header;
 }
 
@@ -135,4 +135,47 @@ rtp * createHeader(int type, int wsize, char* data, int seq)
 }
 
 
+void send_with_random_errors(rtp * header, int sock, struct sockaddr_in serverAddress) {
+	int rand_num = rand()%5;
+
+	switch(rand_num)
+	{
+	case 1:
+		//corrupt packet
+		printf("------corrupt package sending------");
+		rtp  *corrupt_header = malloc(sizeof(rtp));
+		strcpy(corrupt_header->data, "i am bad\0");
+
+		corrupt_header->windowsize = WSIZE;
+		corrupt_header->id = 1;
+		corrupt_header->flags = DATA;
+		corrupt_header->seq = header->seq;
+		corrupt_header->crc = 1555;
+
+		writeMessage(sock, (char*) corrupt_header, sizeof(rtp), serverAddress, sizeof(serverAddress));
+		free(corrupt_header);
+		break;
+
+	case 2:
+		//creates a wrong order package with sequence number 2
+		printf("-------Package with wrong seqnr sending-------");
+		rtp *corrupt_seqnr_header = malloc(sizeof(rtp));
+		strcpy(corrupt_seqnr_header->data, "i am bad\0");
+
+		corrupt_seqnr_header->windowsize = WSIZE;
+		corrupt_seqnr_header->id = 1;
+		corrupt_seqnr_header->flags = DATA;
+		corrupt_seqnr_header->seq = 2;
+		corrupt_seqnr_header->crc = checksum((void*) corrupt_seqnr_header, sizeof(*corrupt_seqnr_header));
+
+		writeMessage(sock, (char*)corrupt_seqnr_header, sizeof(rtp), serverAddress, sizeof(serverAddress));
+		free(corrupt_seqnr_header);
+		break;
+
+	default:
+		//healthy package again
+		writeMessage(sock, (char*)header, sizeof(rtp), serverAddress, sizeof(serverAddress));
+		break;
+	}
+}
 

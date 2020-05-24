@@ -13,7 +13,6 @@
 #define hostNameLength 50
 #define messageLength  256
 #define MAXMSG 512
-#define WSIZE 2
 #define w_sending 6
 #define w_waiting 7
 
@@ -134,52 +133,6 @@ void connectionSetup(int fileDescriptor)
 			  return;
 			  break;
 		}
-	}
-}
-
-
-void send_with_random_errors(rtp * header, int sock)
-{
-	int rand_num = rand()%5;
-
-	switch(rand_num)
-	{
-	case 1:
-		//corrupt packet
-		printf("------corrupt package sending------");
-		rtp  *corrupt_header = malloc(sizeof(rtp));
-		strcpy(corrupt_header->data, "i am bad\0");
-
-		corrupt_header->windowsize = WSIZE;
-		corrupt_header->id = 1;
-		corrupt_header->flags = DATA;
-		corrupt_header->seq = header->seq;
-		corrupt_header->crc = 1555;
-
-		writeMessage(sock, (char*) corrupt_header, sizeof(rtp), serverName, sizeof(serverName));
-		free(corrupt_header);
-		break;
-
-	case 2:
-		//creates a wrong order package with sequence number 2
-		printf("-------Package with wrong seqnr sending-------");
-		rtp *corrupt_seqnr_header = malloc(sizeof(rtp));
-		strcpy(corrupt_seqnr_header, "i am bad\0");
-
-		corrupt_seqnr_header->windowsize = WSIZE;
-		corrupt_seqnr_header->id = 1;
-		corrupt_seqnr_header->flags = DATA;
-		corrupt_seqnr_header->seq = 2;
-		corrupt_seqnr_header->crc = checksum((void*) corrupt_seqnr_header, sizeof(*corrupt_seqnr_header));
-
-		writeMessage(sock, (char*)corrupt_seqnr_header, sizeof(rtp), serverName, sizeof(serverName));
-		free(corrupt_seqnr_header);
-		break;
-
-	default:
-		//healthy package again
-		writeMessage(sock, (char*)header, sizeof(rtp), serverName, sizeof(serverName));
-		break;
 	}
 }
 
