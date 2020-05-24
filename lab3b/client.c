@@ -306,6 +306,39 @@ void tear_down (int filedescriptor, socklen_t size)
 				 break;
 			}
 
+			case WAIT_TIMEOUT:
+			{
+				//Server got a timeout and sent a SYN_ACK again, ACK got lost. SYNACK remove by client wrong Checksum
+				//client sends ACK again
+				if (packet->flags == receive_FINACK || packet->flags == WRONGCRC)
+				{
+					printf("OH NO! ACK is lost, I will send it again!\n");
+					removeHead();
+
+					header->crc=0;
+					header->crc =checksum ((void*) &header, sizeof(header));
+					header->flags = send_ACK;
+
+					writeMessage(filedescriptor, (char*) header, sizeof(rtp), serverName, sizeof(serverName));
+					printf("ACK was send again to server. timestamp: %ld\n", time(0));
+					createSetupHeader(ACK, WSIZE, "Here is an ACK");
+				}
+				break;
+			}
+
+			case ESTABLISHED:
+			{
+				//server got ACK, timeout means connection has stopped
+				if (packet == NULL)
+				{
+					printf("-----------TimeOut-----------\n");
+					printf("Connection with the server was terminated!");
+					removeHead();
+					return;
+				}
+				break;
+			}
+
 		/*	//when ACK gets lost and we
 			case WAIT_TIMEOUT:
 			{
